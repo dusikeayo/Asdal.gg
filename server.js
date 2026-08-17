@@ -6,10 +6,8 @@ const { URL } = require("url");
 
 const PORT = process.env.PORT || 3000;
 
-
-// ==============================
-// 아스달 월드 목록
-// ==============================
+const ROW_PER_PAGE = 500;
+const BATCH_SIZE = 3;
 
 const worlds = {
     "크라본": 70110,
@@ -32,289 +30,203 @@ const worlds = {
     "리라": 70321
 };
 
-
-// ==============================
-// 과거 랭킹 저장 폴더
-// ==============================
-
-const DATA_DIR =
-    path.join(__dirname, "data");
-
+const DATA_DIR = path.join(__dirname, "data");
 
 if (!fs.existsSync(DATA_DIR)) {
-
-    fs.mkdirSync(DATA_DIR, {
-        recursive: true
-    });
-
-    console.log(
-        "data 폴더 생성 완료"
-    );
+    fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-
-// ==============================
-// 오늘 날짜
-// ==============================
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 function getTodayDate() {
-
     const now = new Date();
 
-    const year =
-        now.getFullYear();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
 
-    const month =
-        String(
-            now.getMonth() + 1
-        ).padStart(2, "0");
-
-    const day =
-        String(
-            now.getDate()
-        ).padStart(2, "0");
-
-    return (
-        year +
-        "-" +
-        month +
-        "-" +
-        day
-    );
-
+    return `${year}-${month}-${day}`;
 }
-
-
-// ==============================
-// 과거 랭킹 파일 경로
-// ==============================
 
 function getHistoryFile(date) {
-
-    return path.join(
-        DATA_DIR,
-        date + ".json"
-    );
-
+    return path.join(DATA_DIR, `${date}.json`);
 }
 
 
-// ==============================
-// 아스달 공식 API 요청
-// ==============================
+// ========================================
+// 넷마블 랭킹 API
+// ========================================
 
-function getRanking(worldId, page = 1) {
+function requestRanking(worldId) {
 
-    return new Promise(function(resolve, reject) {
+    return new Promise((resolve, reject) => {
 
         const apiUrl =
             "https://arthdal.netmarble.com/front-api/ranking" +
             "?lang=ko" +
-            "&page=" + page +
-            "&row=50" +
+            "&page=1" +
+            "&row=" + ROW_PER_PAGE +
             "&type=power" +
             "&worldId=" + worldId +
             "&name=";
 
+        console.log("[API]", apiUrl);
 
         https.get(
             apiUrl,
-            function(apiRes) {
+            {
+                headers: {
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept": "application/json"
+                }
+            },
+            response => {
 
-                let data = "";
+                let body = "";
 
+                response.on("data", chunk => {
+                    body += chunk;
+                });
 
-                apiRes.on(
-                    "data",
-                    function(chunk) {
+                response.on("end", () => {
 
-                        data += chunk;
+                    if (response.statusCode !== 200) {
+
+                        reject(
+                            new Error(
+                                "HTTP " +
+                                response.statusCode
+                            )
+                        );
+
+                        return;
+                    }
+
+                    try {
+
+                        const json =
+                            JSON.parse(body);
+
+                        resolve(json);
+
+                    } catch (error) {
+
+                        reject(
+                            new Error(
+                                "JSON parse error"
+                            )
+                        );
 
                     }
-                );
 
-
-                apiRes.on(
-                    "end",
-                    function() {
-
-                        try {
-
-                            const json =
-                                JSON.parse(data);
-
-                            resolve(json);
-
-                        } catch (error) {
-
-                            reject(error);
-
-                        }
-
-                    }
-                );
+                });
 
             }
-        ).on(
-            "error",
-            function(error) {
-
-                reject(error);
-
-            }
-        );
+        ).on("error", error => {
+            reject(error);
+        });
 
     });
 
 }
 
 
-// ==============================
-// 서버 하나의 전체 랭킹
-// 최대 500명
-// ==============================
+// ========================================
+// 월드별 랭킹
+// ========================================
 
 async function getWorldRanking(
     serverName,
     worldId
 ) {
 
-    const results = [];
+    console.log(
+        "================================"
+    );
 
+    console.log(
+        "[WORLD] " +
+        serverName +
+        " START"
+    );
 
-    for (
-        let page = 1;
-        page <= 10;
-        page++
-    ) {
+    try {
 
-        try {
+        const response =
+            await requestRanking(worldId);
+
+        if (
+            !response ||
+            !response.resultData ||
+            !Array.isArray(
+                response.resultData.resData
+            )
+        ) {
 
             console.log(
-                "[" +
+                "[STOP] " +
                 serverName +
-                "] " +
-                page +
-                "/10 페이지 요청 중..."
+                " invalid data"
             );
 
-
-            const data =
-                await getRanking(
-                    worldId,
-                    page
-                );
-
-
-            if (
-                !data.resultData ||
-                !data.resultData.resData
-            ) {
-
-                console.log(
-                    "[" +
-                    serverName +
-                    "] " +
-                    page +
-                    "페이지 데이터 없음"
-                );
-
-                break;
-
-            }
-
-
-            const players =
-                data.resultData.resData;
-
-
-            players.forEach(
-                function(player) {
-
-                    results.push({
-
-                        ...player,
-
-                        server:
-                            serverName,
-
-                        worldId:
-                            worldId
-
-                    });
-
-                }
-            );
-
-
-            if (
-                players.length < 50
-            ) {
-
-                break;
-
-            }
-
-
-        } catch (error) {
-
-            console.error(
-                "[" +
-                serverName +
-                "] " +
-                page +
-                "페이지 요청 실패",
-                error
-            );
-
-            break;
+            return [];
 
         }
 
-    }
+        const players =
+            response.resultData.resData;
+
+        console.log(
+            "[DATA] " +
+            serverName +
+            " " +
+            players.length +
+            "명"
+        );
+
+        console.log(
+            "[TOTAL COUNT] " +
+            serverName +
+            " " +
+            (
+                response.resultData.total_count ||
+                players.length
+            )
+        );
 
 
-    // ==============================
-    // 같은 서버 중복 제거
-    // ==============================
+        const results =
+            players.map(player => {
 
-    const uniqueResults = [];
+                return {
+                    ...player,
+                    server: serverName,
+                    worldId: worldId
+                };
 
-    const duplicateKeys =
-        new Set();
+            });
 
 
-    results.forEach(
-        function(player) {
+        // 중복 제거
+        const uniqueResults = [];
+
+        const duplicateKeys =
+            new Set();
+
+
+        results.forEach(player => {
 
             const key =
-                String(
-                    player.name || ""
-                ) +
+                String(player.server || "") +
                 "|" +
-                String(
-                    player.main_job || ""
-                ) +
-                "|" +
-                String(
-                    player.level || ""
-                ) +
-                "|" +
-                String(
-                    player.power || ""
-                );
+                String(player.name || "");
 
 
             if (
                 duplicateKeys.has(key)
             ) {
-
-                console.log(
-                    "[" +
-                    serverName +
-                    "] 중복 제거: " +
-                    player.name
-                );
 
                 return;
 
@@ -323,89 +235,108 @@ async function getWorldRanking(
 
             duplicateKeys.add(key);
 
-            uniqueResults.push(
-                player
-            );
+            uniqueResults.push(player);
 
-        }
-    );
+        });
 
 
-    console.log(
-        "[" +
-        serverName +
-        "] 총 " +
-        uniqueResults.length +
-        "명 완료"
-    );
+        // 전투력 순
+        uniqueResults.sort(
+            (a, b) => {
+
+                return (
+                    (Number(b.power) || 0) -
+                    (Number(a.power) || 0)
+                );
+
+            }
+        );
 
 
-    return uniqueResults;
+        // 월드 랭킹
+        uniqueResults.forEach(
+            (player, index) => {
+
+                player.rank =
+                    index + 1;
+
+                player.totalRank =
+                    index + 1;
+
+            }
+        );
+
+
+        console.log(
+            "[WORLD] " +
+            serverName +
+            " DONE " +
+            uniqueResults.length
+        );
+
+
+        return uniqueResults;
+
+
+    } catch (error) {
+
+        console.error(
+            "[ERROR] " +
+            serverName,
+            error.message
+        );
+
+        return [];
+
+    }
 
 }
 
 
-// ==============================
+// ========================================
 // 전체 서버 랭킹
-// ==============================
+// ========================================
 
 async function getAllRanking() {
 
     let results = [];
 
-
-    const worldEntries =
+    const entries =
         Object.entries(worlds);
-
-
-    const batchSize = 3;
 
 
     for (
         let i = 0;
-        i < worldEntries.length;
-        i += batchSize
+        i < entries.length;
+        i += BATCH_SIZE
     ) {
 
         const batch =
-            worldEntries.slice(
+            entries.slice(
                 i,
-                i + batchSize
+                i + BATCH_SIZE
             );
 
 
-        console.log("");
-
         console.log(
-            "=============================="
+            "================================"
         );
 
-
         console.log(
-            "서버 " +
+            "[BATCH] " +
             (i + 1) +
             " ~ " +
             Math.min(
-                i + batchSize,
-                worldEntries.length
-            ) +
-            " 요청 시작"
-        );
-
-
-        console.log(
-            "=============================="
+                i + BATCH_SIZE,
+                entries.length
+            )
         );
 
 
         const batchResults =
             await Promise.all(
-
                 batch.map(
-                    function([
-                        serverName,
-                        worldId
-                    ]) {
+                    ([serverName, worldId]) => {
 
                         return getWorldRanking(
                             serverName,
@@ -414,12 +345,11 @@ async function getAllRanking() {
 
                     }
                 )
-
             );
 
 
         batchResults.forEach(
-            function(serverData) {
+            serverData => {
 
                 results =
                     results.concat(
@@ -429,81 +359,46 @@ async function getAllRanking() {
             }
         );
 
+
+        await sleep(300);
+
     }
 
 
-    // ==============================
-    // 전체 서버 중복 제거
-    // ==============================
-
+    // 중복 제거
     const uniqueResults = [];
 
     const duplicateKeys =
         new Set();
 
 
-    results.forEach(
-        function(player) {
+    results.forEach(player => {
 
-            const key =
-                String(
-                    player.server || ""
-                ) +
-                "|" +
-                String(
-                    player.name || ""
-                ) +
-                "|" +
-                String(
-                    player.main_job || ""
-                ) +
-                "|" +
-                String(
-                    player.level || ""
-                ) +
-                "|" +
-                String(
-                    player.power || ""
-                );
+        const key =
+            String(player.server || "") +
+            "|" +
+            String(player.name || "");
 
 
-            if (
-                duplicateKeys.has(key)
-            ) {
+        if (
+            duplicateKeys.has(key)
+        ) {
 
-                console.log(
-                    "전체 랭킹 중복 제거: " +
-                    player.name +
-                    " (" +
-                    player.server +
-                    ")"
-                );
-
-                return;
-
-            }
-
-
-            duplicateKeys.add(key);
-
-            uniqueResults.push(
-                player
-            );
+            return;
 
         }
-    );
 
 
-    results =
-        uniqueResults;
+        duplicateKeys.add(key);
+
+        uniqueResults.push(player);
+
+    });
 
 
-    // ==============================
-    // 전투력 높은 순
-    // ==============================
-
-    results.sort(
-        function(a, b) {
+    // 전체 서버 전투력 순
+    uniqueResults.sort(
+        (a, b) => {
 
             return (
                 (Number(b.power) || 0) -
@@ -514,12 +409,9 @@ async function getAllRanking() {
     );
 
 
-    // ==============================
-    // 전체 통합 순위
-    // ==============================
-
-    results.forEach(
-        function(player, index) {
+    // 전체 서버 순위
+    uniqueResults.forEach(
+        (player, index) => {
 
             player.totalRank =
                 index + 1;
@@ -528,57 +420,40 @@ async function getAllRanking() {
     );
 
 
-    console.log("");
+    console.log(
+        "================================"
+    );
 
     console.log(
-        "=============================="
+        "[ALL] TOTAL " +
+        uniqueResults.length
     );
 
 
-    console.log(
-        "전체 서버 랭킹 완료 : " +
-        results.length +
-        "명"
-    );
-
-
-    console.log(
-        "=============================="
-    );
-
-
-    return results;
+    return uniqueResults;
 
 }
 
 
-// ==============================
-// 하루 1회 랭킹 저장
-// ==============================
+// ========================================
+// 일일 랭킹 저장
+// ========================================
 
 function saveDailyRanking(ranking) {
 
     return new Promise(
-        function(resolve, reject) {
+        (resolve, reject) => {
 
             const today =
                 getTodayDate();
-
 
             const filePath =
                 getHistoryFile(today);
 
 
-            // 오늘 이미 저장되어 있으면 종료
             if (
                 fs.existsSync(filePath)
             ) {
-
-                console.log(
-                    "[" +
-                    today +
-                    "] 이미 저장된 랭킹입니다."
-                );
 
                 resolve(false);
 
@@ -589,8 +464,7 @@ function saveDailyRanking(ranking) {
 
             const saveData = {
 
-                date:
-                    today,
+                date: today,
 
                 savedAt:
                     new Date().toISOString(),
@@ -612,14 +486,9 @@ function saveDailyRanking(ranking) {
                     2
                 ),
                 "utf8",
-                function(error) {
+                error => {
 
                     if (error) {
-
-                        console.error(
-                            "랭킹 저장 실패:",
-                            error
-                        );
 
                         reject(error);
 
@@ -628,33 +497,12 @@ function saveDailyRanking(ranking) {
                     }
 
 
-                    console.log("");
-
                     console.log(
-                        "=============================="
-                    );
-
-
-                    console.log(
-                        "과거 랭킹 저장 완료"
-                    );
-
-
-                    console.log(
-                        "날짜 : " +
-                        today
-                    );
-
-
-                    console.log(
-                        "인원 : " +
+                        "[SAVE] " +
+                        today +
+                        " " +
                         ranking.length +
                         "명"
-                    );
-
-
-                    console.log(
-                        "=============================="
                     );
 
 
@@ -669,97 +517,9 @@ function saveDailyRanking(ranking) {
 }
 
 
-// ==============================
-// 자동 하루 1회 저장
-// ==============================
-
-let dailySaveRunning = false;
-
-
-async function checkDailySave() {
-
-    if (
-        dailySaveRunning
-    ) {
-
-        return;
-
-    }
-
-
-    const today =
-        getTodayDate();
-
-
-    const filePath =
-        getHistoryFile(today);
-
-
-    // 오늘 이미 저장되어 있으면 아무것도 안 함
-    if (
-        fs.existsSync(filePath)
-    ) {
-
-        return;
-
-    }
-
-
-    dailySaveRunning = true;
-
-
-    try {
-
-        console.log("");
-
-        console.log(
-            "=============================="
-        );
-
-        console.log(
-            "오늘의 랭킹 자동 저장 시작"
-        );
-
-        console.log(
-            "날짜 : " +
-            today
-        );
-
-        console.log(
-            "=============================="
-        );
-
-
-        const ranking =
-            await getAllRanking();
-
-
-        await saveDailyRanking(
-            ranking
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "오늘의 랭킹 자동 저장 실패:",
-            error
-        );
-
-
-    } finally {
-
-        dailySaveRunning =
-            false;
-
-    }
-
-}
-
-
-// ==============================
-// 저장된 날짜 목록
-// ==============================
+// ========================================
+// 과거 날짜
+// ========================================
 
 function getHistoryDates() {
 
@@ -772,49 +532,28 @@ function getHistoryDates() {
     }
 
 
-    return fs.readdirSync(
-        DATA_DIR
-    )
-
-    .filter(
-        function(file) {
-
-            return (
-                file.endsWith(".json")
-            );
-
-        }
-    )
-
-    .map(
-        function(file) {
-
-            return file.replace(
-                ".json",
-                ""
-            );
-
-        }
-    )
-
-    .sort(
-        function(a, b) {
-
-            return b.localeCompare(a);
-
-        }
-    );
+    return fs
+        .readdirSync(DATA_DIR)
+        .filter(file =>
+            file.endsWith(".json")
+        )
+        .map(file =>
+            file.replace(".json", "")
+        )
+        .sort(
+            (a, b) =>
+                b.localeCompare(a)
+        );
 
 }
 
 
-// ==============================
-// 특정 날짜 랭킹 가져오기
-// ==============================
+// ========================================
+// 과거 랭킹
+// ========================================
 
 function getHistoryRanking(date) {
 
-    // 날짜 형식 검사
     if (
         !/^\d{4}-\d{2}-\d{2}$/.test(date)
     ) {
@@ -839,23 +578,17 @@ function getHistoryRanking(date) {
 
     try {
 
-        const file =
+        const content =
             fs.readFileSync(
                 filePath,
                 "utf8"
             );
 
 
-        return JSON.parse(file);
+        return JSON.parse(content);
 
 
     } catch (error) {
-
-        console.error(
-            "과거 랭킹 파일 읽기 실패:",
-            error
-        );
-
 
         return null;
 
@@ -864,356 +597,165 @@ function getHistoryRanking(date) {
 }
 
 
-// ==============================
-// HTTP 서버
-// ==============================
+// ========================================
+// JSON 응답
+// ========================================
+
+function sendJson(
+    res,
+    statusCode,
+    data
+) {
+
+    res.writeHead(
+        statusCode,
+        {
+            "Content-Type":
+                "application/json; charset=utf-8",
+
+            "Access-Control-Allow-Origin":
+                "*"
+        }
+    );
+
+
+    res.end(
+        JSON.stringify(data)
+    );
+
+}
+
+
+// ========================================
+// 서버
+// ========================================
 
 const server =
     http.createServer(
-        async function(req, res) {
+        async (req, res) => {
 
-            const url =
-                new URL(
-                    req.url,
-                    "http://" +
-                    req.headers.host
-                );
+            try {
+
+                const requestUrl =
+                    new URL(
+                        req.url,
+                        "http://" +
+                        req.headers.host
+                    );
 
 
-            // ==========================
-            // 전체 서버 API
-            // ==========================
+                // ==================================
+                // 전체 랭킹
+                // ==================================
 
-            if (
-                url.pathname ===
-                "/api/all-ranking"
-            ) {
-
-                try {
+                if (
+                    requestUrl.pathname ===
+                    "/api/all-ranking"
+                ) {
 
                     const ranking =
                         await getAllRanking();
 
 
-                    // 오늘 날짜 저장
                     await saveDailyRanking(
                         ranking
                     );
 
 
-                    res.writeHead(
+                    sendJson(
+                        res,
                         200,
                         {
-
-                            "Content-Type":
-                                "application/json; charset=utf-8",
-
-                            "Access-Control-Allow-Origin":
-                                "*"
-
-                        }
-                    );
-
-
-                    res.end(
-                        JSON.stringify({
-
                             total:
                                 ranking.length,
 
                             data:
                                 ranking
-
-                        })
-                    );
-
-
-                } catch (error) {
-
-                    console.error(
-                        "전체 랭킹 오류:",
-                        error
-                    );
-
-
-                    res.writeHead(
-                        500,
-                        {
-
-                            "Content-Type":
-                                "application/json; charset=utf-8",
-
-                            "Access-Control-Allow-Origin":
-                                "*"
-
                         }
                     );
 
 
-                    res.end(
-                        JSON.stringify({
-
-                            error:
-                                "전체 랭킹을 가져오지 못했습니다."
-
-                        })
-                    );
+                    return;
 
                 }
 
 
-                return;
+                // ==================================
+                // 특정 서버
+                // ==================================
 
-            }
+                if (
+                    requestUrl.pathname ===
+                    "/api/ranking"
+                ) {
 
-
-            // ==========================
-            // 과거 날짜 목록 API
-            // ==========================
-
-            if (
-                url.pathname ===
-                "/api/history-dates"
-            ) {
-
-                const dates =
-                    getHistoryDates();
+                    const worldId =
+                        requestUrl.searchParams.get(
+                            "worldId"
+                        );
 
 
-                res.writeHead(
-                    200,
-                    {
+                    if (!worldId) {
 
-                        "Content-Type":
-                            "application/json; charset=utf-8",
+                        sendJson(
+                            res,
+                            400,
+                            {
+                                error:
+                                    "worldId required"
+                            }
+                        );
 
-                        "Access-Control-Allow-Origin":
-                            "*"
+                        return;
 
                     }
-                );
 
-
-                res.end(
-                    JSON.stringify({
-
-                        dates:
-                            dates
-
-                    })
-                );
-
-
-                return;
-
-            }
-
-
-            // ==========================
-            // 과거 랭킹 API
-            // ==========================
-
-            if (
-                url.pathname ===
-                "/api/history"
-            ) {
-
-                const date =
-                    url.searchParams.get(
-                        "date"
-                    );
-
-
-                if (!date) {
-
-                    res.writeHead(
-                        400,
-                        {
-
-                            "Content-Type":
-                                "application/json; charset=utf-8",
-
-                            "Access-Control-Allow-Origin":
-                                "*"
-
-                        }
-                    );
-
-
-                    res.end(
-                        JSON.stringify({
-
-                            error:
-                                "날짜가 필요합니다."
-
-                        })
-                    );
-
-
-                    return;
-
-                }
-
-
-                const history =
-                    getHistoryRanking(
-                        date
-                    );
-
-
-                if (!history) {
-
-                    res.writeHead(
-                        404,
-                        {
-
-                            "Content-Type":
-                                "application/json; charset=utf-8",
-
-                            "Access-Control-Allow-Origin":
-                                "*"
-
-                        }
-                    );
-
-
-                    res.end(
-                        JSON.stringify({
-
-                            error:
-                                "해당 날짜의 랭킹 데이터가 없습니다."
-
-                        })
-                    );
-
-
-                    return;
-
-                }
-
-
-                res.writeHead(
-                    200,
-                    {
-
-                        "Content-Type":
-                            "application/json; charset=utf-8",
-
-                        "Access-Control-Allow-Origin":
-                            "*"
-
-                    }
-                );
-
-
-                res.end(
-                    JSON.stringify(
-                        history
-                    )
-                );
-
-
-                return;
-
-            }
-
-
-            // ==========================
-            // 개별 서버 API
-            // ==========================
-
-            if (
-                url.pathname ===
-                "/api/ranking"
-            ) {
-
-                const worldId =
-                    url.searchParams.get(
-                        "worldId"
-                    );
-
-
-                if (!worldId) {
-
-                    res.writeHead(
-                        400,
-                        {
-
-                            "Content-Type":
-                                "application/json; charset=utf-8"
-
-                        }
-                    );
-
-
-                    res.end(
-                        JSON.stringify({
-
-                            error:
-                                "worldId가 필요합니다."
-
-                        })
-                    );
-
-
-                    return;
-
-                }
-
-
-                try {
 
                     const world =
-                        Object.entries(worlds)
-                            .find(
-                                function([
-                                    serverName,
-                                    id
-                                ]) {
+                        Object.entries(
+                            worlds
+                        ).find(
+                            ([name, id]) => {
 
-                                    return (
-                                        String(id) ===
-                                        String(worldId)
-                                    );
+                                return (
+                                    String(id) ===
+                                    String(worldId)
+                                );
 
-                                }
-                            );
+                            }
+                        );
 
 
-                    const serverName =
-                        world
-                            ? world[0]
-                            : "알 수 없는 서버";
+                    if (!world) {
+
+                        sendJson(
+                            res,
+                            404,
+                            {
+                                error:
+                                    "world not found"
+                            }
+                        );
+
+                        return;
+
+                    }
 
 
                     const ranking =
                         await getWorldRanking(
-                            serverName,
+                            world[0],
                             Number(worldId)
                         );
 
 
-                    res.writeHead(
+                    sendJson(
+                        res,
                         200,
                         {
-
-                            "Content-Type":
-                                "application/json; charset=utf-8",
-
-                            "Access-Control-Allow-Origin":
-                                "*"
-
-                        }
-                    );
-
-
-                    res.end(
-                        JSON.stringify({
-
                             resultData: {
 
-                                resCode:
-                                    0,
+                                resCode: 0,
 
                                 errorMessage:
                                     "Success",
@@ -1222,165 +764,263 @@ const server =
                                     ranking
 
                             }
-
-                        })
-                    );
-
-
-                } catch (error) {
-
-                    console.error(
-                        "개별 서버 랭킹 오류:",
-                        error
-                    );
-
-
-                    res.writeHead(
-                        500,
-                        {
-
-                            "Content-Type":
-                                "application/json; charset=utf-8",
-
-                            "Access-Control-Allow-Origin":
-                                "*"
-
                         }
                     );
 
 
-                    res.end(
-                        JSON.stringify({
-
-                            error:
-                                "랭킹 데이터를 가져오지 못했습니다."
-
-                        })
-                    );
+                    return;
 
                 }
 
 
-                return;
+                // ==================================
+                // 날짜 목록
+                // ==================================
 
-            }
-
-
-            // ==========================
-            // 홈페이지 파일
-            // ==========================
-
-            let filePath =
-                url.pathname === "/"
-                    ? path.join(
-                        __dirname,
-                        "index.html"
-                    )
-                    : path.join(
-                        __dirname,
-                        url.pathname
-                    );
-
-
-            const ext =
-                path.extname(
-                    filePath
-                );
-
-
-            const contentTypes = {
-
-                ".html":
-                    "text/html; charset=utf-8",
-
-                ".js":
-                    "text/javascript; charset=utf-8",
-
-                ".css":
-                    "text/css; charset=utf-8",
-
-                ".png":
-                    "image/png",
-
-                ".jpg":
-                    "image/jpeg",
-
-                ".jpeg":
-                    "image/jpeg",
-
-                ".ico":
-                    "image/x-icon"
-
-            };
-
-
-            fs.readFile(
-                filePath,
-                function(
-                    error,
-                    content
+                if (
+                    requestUrl.pathname ===
+                    "/api/history-dates"
                 ) {
 
-                    if (error) {
+                    sendJson(
+                        res,
+                        200,
+                        {
+                            dates:
+                                getHistoryDates()
+                        }
+                    );
 
-                        res.writeHead(
-                            404
+                    return;
+
+                }
+
+
+                // ==================================
+                // 과거 랭킹
+                // ==================================
+
+                if (
+                    requestUrl.pathname ===
+                    "/api/history"
+                ) {
+
+                    const date =
+                        requestUrl.searchParams.get(
+                            "date"
                         );
 
 
-                        res.end(
-                            "Not Found"
-                        );
+                    if (!date) {
 
+                        sendJson(
+                            res,
+                            400,
+                            {
+                                error:
+                                    "date required"
+                            }
+                        );
 
                         return;
 
                     }
 
 
-                    res.writeHead(
+                    const history =
+                        getHistoryRanking(date);
+
+
+                    if (!history) {
+
+                        sendJson(
+                            res,
+                            404,
+                            {
+                                error:
+                                    "history not found"
+                            }
+                        );
+
+                        return;
+
+                    }
+
+
+                    sendJson(
+                        res,
                         200,
-                        {
-
-                            "Content-Type":
-                                contentTypes[ext] ||
-                                "application/octet-stream"
-
-                        }
+                        history
                     );
 
 
-                    res.end(
-                        content
-                    );
+                    return;
 
                 }
-            );
+
+
+                // ==================================
+                // 정적 파일
+                // ==================================
+
+                let filePath;
+
+
+                if (
+                    requestUrl.pathname === "/"
+                ) {
+
+                    filePath =
+                        path.join(
+                            __dirname,
+                            "index.html"
+                        );
+
+                } else {
+
+                    const cleanPath =
+                        decodeURIComponent(
+                            requestUrl.pathname
+                        ).replace(
+                            /^\/+/,
+                            ""
+                        );
+
+
+                    filePath =
+                        path.join(
+                            __dirname,
+                            cleanPath
+                        );
+
+                }
+
+
+                if (
+                    !filePath.startsWith(
+                        __dirname
+                    )
+                ) {
+
+                    res.writeHead(403);
+
+                    res.end("Forbidden");
+
+                    return;
+
+                }
+
+
+                const ext =
+                    path.extname(
+                        filePath
+                    ).toLowerCase();
+
+
+                const contentTypes = {
+
+                    ".html":
+                        "text/html; charset=utf-8",
+
+                    ".js":
+                        "text/javascript; charset=utf-8",
+
+                    ".css":
+                        "text/css; charset=utf-8",
+
+                    ".json":
+                        "application/json; charset=utf-8",
+
+                    ".png":
+                        "image/png",
+
+                    ".jpg":
+                        "image/jpeg",
+
+                    ".jpeg":
+                        "image/jpeg",
+
+                    ".gif":
+                        "image/gif",
+
+                    ".ico":
+                        "image/x-icon"
+
+                };
+
+
+                fs.readFile(
+                    filePath,
+                    (error, content) => {
+
+                        if (error) {
+
+                            res.writeHead(404);
+
+                            res.end(
+                                "Not Found"
+                            );
+
+                            return;
+
+                        }
+
+
+                        res.writeHead(
+                            200,
+                            {
+                                "Content-Type":
+                                    contentTypes[ext] ||
+                                    "application/octet-stream"
+                            }
+                        );
+
+
+                        res.end(content);
+
+                    }
+                );
+
+
+            } catch (error) {
+
+                console.error(
+                    "[SERVER ERROR]",
+                    error
+                );
+
+
+                sendJson(
+                    res,
+                    500,
+                    {
+                        error:
+                            "server error"
+                    }
+                );
+
+            }
 
         }
     );
 
 
-// ==============================
-// 서버 실행
-// ==============================
+// ========================================
+// 서버 시작
+// ========================================
 
 server.listen(
     PORT,
-    function() {
-
-        console.log("");
+    "0.0.0.0",
+    () => {
 
         console.log(
-            "================================"
+            "SERVER STARTED"
         );
 
         console.log(
-            "      아스달 지지 서버 실행"
-        );
-
-        console.log(
-            "================================"
+            "PORT " +
+            PORT
         );
 
         console.log(
@@ -1388,22 +1028,86 @@ server.listen(
             PORT
         );
 
-        console.log("");
 
-        // 서버 시작 시 오늘 데이터가 없으면 저장
         checkDailySave();
 
     }
 );
 
 
-// ==============================
-// 하루 1회 자동 저장 확인
-// 1분마다 날짜 확인
-// ==============================
+// ========================================
+// 하루 1회 자동 저장
+// ========================================
+
+let dailySaveRunning = false;
+
+
+async function checkDailySave() {
+
+    if (
+        dailySaveRunning
+    ) {
+
+        return;
+
+    }
+
+
+    const today =
+        getTodayDate();
+
+
+    const filePath =
+        getHistoryFile(today);
+
+
+    if (
+        fs.existsSync(filePath)
+    ) {
+
+        return;
+
+    }
+
+
+    dailySaveRunning = true;
+
+
+    try {
+
+        console.log(
+            "[DAILY SAVE] 오늘 랭킹 저장 시작"
+        );
+
+
+        const ranking =
+            await getAllRanking();
+
+
+        await saveDailyRanking(
+            ranking
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "[DAILY SAVE ERROR]",
+            error
+        );
+
+
+    } finally {
+
+        dailySaveRunning = false;
+
+    }
+
+}
+
 
 setInterval(
-    function() {
+    () => {
 
         checkDailySave();
 
