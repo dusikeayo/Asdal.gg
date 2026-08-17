@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>아스달 지지</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>아스달 지지</h1>
+
+        <nav>
+            <a href="#">랭킹</a>
+        </nav>
+    </header>
+
+
+    <main>
+
+        <section class="ranking">
+
+            <h2>랭킹</h2>
+
+
+            <!-- 검색 영역 -->
+
+            <div class="search-box">
+
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="닉네임을 검색하세요"
+                >
+
+
+                <select id="serverFilter">
+
+                    <option value="all">
+                        전체 서버
+                    </option>
+
+                    <option value="">
+                        서버 선택
+                    </option>
+
+                </select>
+
+
+                <select id="sortFilter">
+
+                    <option value="power">
+                        전투력 높은 순
+                    </option>
+
+                    <option value="level">
+                        레벨 높은 순
+                    </option>
+
+                    <option value="nickname">
+                        닉네임 순
+                    </option>
+
+                </select>
+
+
+                <!-- 과거 랭킹 -->
+
+                <select id="historyFilter">
+
+                    <option value="current">
+                        현재 랭킹
+                    </option>
+
+                </select>
+
+
+                <button id="searchButton">
+                    검색
+                </button>
+
+            </div>
+
+
+            <!-- 현재 / 과거 상태 -->
+
+            <div id="rankingStatus"></div>
+
+
+            <!-- 랭킹 표 -->
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>순위</th>
+                        <th>닉네임</th>
+                        <th>직업</th>
+                        <th>레벨</th>
+                        <th>전투력</th>
+                        <th>서버</th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="rankingBody">
+
+                </tbody>
+
+            </table>
+
+        </section>
+
+    </main>
+
+
+    <footer>
+
+        <p>아스달 지지</p>
+
+    </footer>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,965 @@
+/* =========================================================
+   아스달 지지 - Premium Ranking Design
+   Dark Fantasy / Gold / Official Game Site Style
+========================================================= */
+
+
+/* =========================================================
+   기본
+========================================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+
+    background:
+        radial-gradient(
+            circle at 50% -10%,
+            rgba(214, 168, 95, 0.12),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 10% 40%,
+            rgba(120, 90, 45, 0.05),
+            transparent 30%
+        ),
+        #090909;
+
+    color: #f4f0e8;
+
+    font-family:
+        "Noto Sans KR",
+        "Malgun Gothic",
+        "맑은 고딕",
+        Arial,
+        sans-serif;
+
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   스크롤바
+========================================================= */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0b0b0b;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3b3326;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #8f6f3f;
+}
+
+
+/* =========================================================
+   헤더
+========================================================= */
+
+header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+
+    height: 78px;
+
+    padding: 0 55px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(24, 22, 18, 0.98),
+            rgba(13, 13, 12, 0.97)
+        );
+
+    border-bottom: 1px solid rgba(214, 168, 95, 0.22);
+
+    box-shadow:
+        0 10px 35px rgba(0, 0, 0, 0.45);
+
+    backdrop-filter: blur(12px);
+}
+
+
+/* 헤더 상단 골드 라인 */
+
+header::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 0;
+    right: 0;
+
+    height: 2px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #8f6c38,
+            #d6a85f,
+            #8f6c38,
+            transparent
+        );
+
+    opacity: 0.8;
+}
+
+
+/* =========================================================
+   로고
+========================================================= */
+
+header h1 {
+    position: relative;
+
+    margin: 0;
+
+    font-family:
+        Georgia,
+        "Noto Serif KR",
+        serif;
+
+    font-size: 27px;
+    font-weight: 700;
+
+    letter-spacing: 3px;
+
+    color: #e5c98f;
+
+    text-shadow:
+        0 0 18px rgba(214, 168, 95, 0.18);
+}
+
+
+/* 로고 옆 장식 */
+
+header h1::before {
+    content: "";
+
+    display: inline-block;
+
+    width: 7px;
+    height: 7px;
+
+    margin-right: 12px;
+
+    transform: rotate(45deg);
+
+    background: #c79a55;
+
+    box-shadow:
+        0 0 10px rgba(214, 168, 95, 0.5);
+}
+
+
+/* =========================================================
+   네비게이션
+========================================================= */
+
+nav {
+    display: flex;
+    align-items: center;
+    gap: 35px;
+}
+
+nav a {
+    position: relative;
+
+    padding: 28px 5px;
+
+    color: #bdb7ac;
+
+    text-decoration: none;
+
+    font-size: 14px;
+    font-weight: 500;
+
+    letter-spacing: 1px;
+
+    transition:
+        color 0.25s ease,
+        text-shadow 0.25s ease;
+}
+
+nav a::after {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 17px;
+
+    height: 1px;
+
+    background: #d6a85f;
+
+    transform: scaleX(0);
+
+    transition: transform 0.25s ease;
+}
+
+nav a:hover {
+    color: #e6c783;
+
+    text-shadow:
+        0 0 12px rgba(214, 168, 95, 0.3);
+}
+
+nav a:hover::after {
+    transform: scaleX(1);
+}
+
+
+/* =========================================================
+   메인
+========================================================= */
+
+main {
+    width: 100%;
+    max-width: 1320px;
+
+    margin: 0 auto;
+
+    padding: 75px 35px 100px;
+}
+
+
+/* =========================================================
+   랭킹 영역
+========================================================= */
+
+.ranking {
+    position: relative;
+
+    max-width: 1180px;
+
+    margin: 0 auto;
+
+    padding: 45px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(29, 27, 23, 0.92),
+            rgba(14, 14, 13, 0.96)
+        );
+
+    border: 1px solid rgba(214, 168, 95, 0.16);
+
+    border-radius: 4px;
+
+    box-shadow:
+        0 25px 70px rgba(0, 0, 0, 0.5),
+        inset 0 1px rgba(255, 255, 255, 0.025);
+
+    overflow: hidden;
+}
+
+
+/* 장식용 빛 */
+
+.ranking::before {
+    content: "";
+
+    position: absolute;
+
+    width: 500px;
+    height: 500px;
+
+    top: -300px;
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(214, 168, 95, 0.09),
+            transparent 65%
+        );
+
+    pointer-events: none;
+}
+
+
+/* 상단 장식 라인 */
+
+.ranking::after {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 25%;
+    right: 25%;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(214, 168, 95, 0.7),
+            transparent
+        );
+}
+
+
+/* =========================================================
+   제목
+========================================================= */
+
+.ranking h2 {
+    position: relative;
+
+    margin: 0 0 38px;
+
+    text-align: center;
+
+    font-family:
+        Georgia,
+        "Noto Serif KR",
+        serif;
+
+    font-size: 34px;
+
+    font-weight: 600;
+
+    letter-spacing: 7px;
+
+    color: #e6ce9b;
+
+    text-shadow:
+        0 0 25px rgba(214, 168, 95, 0.12);
+}
+
+
+/* 제목 아래 장식 */
+
+.ranking h2::after {
+    content: "";
+
+    display: block;
+
+    width: 70px;
+    height: 1px;
+
+    margin: 17px auto 0;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #c49a59,
+            transparent
+        );
+}
+
+
+/* =========================================================
+   검색 영역
+========================================================= */
+
+.search-box {
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    flex-wrap: wrap;
+
+    gap: 9px;
+
+    margin-bottom: 25px;
+
+    padding: 18px;
+
+    background:
+        rgba(8, 8, 8, 0.58);
+
+    border: 1px solid rgba(255, 255, 255, 0.055);
+
+    border-radius: 3px;
+
+    box-shadow:
+        inset 0 1px rgba(255, 255, 255, 0.025);
+}
+
+
+/* =========================================================
+   검색 input
+========================================================= */
+
+.search-box input {
+    width: 290px;
+
+    height: 43px;
+
+    padding: 0 15px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #191816,
+            #121211
+        );
+
+    border: 1px solid #3a342a;
+
+    border-radius: 3px;
+
+    color: #eee;
+
+    outline: none;
+
+    font-size: 14px;
+
+    transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.search-box input::placeholder {
+    color: #69645b;
+}
+
+.search-box input:focus {
+    border-color: #a77e42;
+
+    box-shadow:
+        0 0 0 2px rgba(167, 126, 66, 0.08),
+        0 0 20px rgba(167, 126, 66, 0.08);
+}
+
+
+/* =========================================================
+   SELECT
+========================================================= */
+
+.search-box select {
+    min-width: 145px;
+
+    height: 43px;
+
+    padding: 0 13px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #191816,
+            #121211
+        );
+
+    border: 1px solid #3a342a;
+
+    border-radius: 3px;
+
+    color: #d5d0c7;
+
+    outline: none;
+
+    cursor: pointer;
+
+    font-size: 13px;
+
+    transition:
+        border-color 0.25s ease,
+        color 0.25s ease;
+}
+
+.search-box select:hover {
+    border-color: #806238;
+    color: #e4c987;
+}
+
+.search-box select:focus {
+    border-color: #a77e42;
+}
+
+
+/* =========================================================
+   검색 버튼
+========================================================= */
+
+.search-box button {
+    height: 43px;
+
+    padding: 0 26px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #d6ae67,
+            #a77a3d
+        );
+
+    border: 1px solid #e1bc79;
+
+    border-radius: 3px;
+
+    color: #17120b;
+
+    cursor: pointer;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    letter-spacing: 1px;
+
+    box-shadow:
+        0 5px 18px rgba(0, 0, 0, 0.25);
+
+    transition:
+        transform 0.2s ease,
+        filter 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.search-box button:hover {
+    filter: brightness(1.1);
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 7px 22px rgba(0, 0, 0, 0.35),
+        0 0 18px rgba(214, 168, 95, 0.12);
+}
+
+.search-box button:active {
+    transform: translateY(0);
+}
+
+
+/* =========================================================
+   상태 표시
+========================================================= */
+
+#rankingStatus {
+    min-height: 24px;
+
+    margin: 22px 4px 12px;
+
+    color: #8f897e;
+
+    font-size: 13px;
+
+    letter-spacing: 0.3px;
+}
+
+#rankingStatus::before {
+    content: "◆";
+
+    margin-right: 8px;
+
+    color: #a77e42;
+
+    font-size: 8px;
+}
+
+
+/* =========================================================
+   랭킹 테이블
+========================================================= */
+
+table {
+    width: 100%;
+
+    border-collapse: separate;
+
+    border-spacing: 0;
+
+    background: #11110f;
+
+    border: 1px solid rgba(214, 168, 95, 0.13);
+
+    border-radius: 3px;
+
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   테이블 헤더
+========================================================= */
+
+th {
+    height: 50px;
+
+    padding: 0 12px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #24221e,
+            #1a1917
+        );
+
+    color: #cbb27f;
+
+    border-bottom: 1px solid rgba(214, 168, 95, 0.2);
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    letter-spacing: 1px;
+
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   테이블 데이터
+========================================================= */
+
+td {
+    height: 57px;
+
+    padding: 0 12px;
+
+    background: rgba(17, 17, 15, 0.82);
+
+    color: #c9c5bd;
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+
+    font-size: 13px;
+
+    white-space: nowrap;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+
+/* 마지막 행 */
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+
+/* 행 hover */
+
+tbody tr:hover td {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(214, 168, 95, 0.055),
+            rgba(214, 168, 95, 0.02)
+        );
+
+    color: #f0e8d8;
+}
+
+
+/* =========================================================
+   순위
+========================================================= */
+
+tbody td:first-child {
+    color: #9d9588;
+
+    font-family:
+        Georgia,
+        serif;
+
+    font-size: 15px;
+
+    font-weight: 600;
+}
+
+
+/* 1위 */
+
+tbody tr:nth-child(1) td:first-child {
+    color: #e8c979;
+
+    text-shadow:
+        0 0 12px rgba(232, 201, 121, 0.22);
+}
+
+
+/* 2위 */
+
+tbody tr:nth-child(2) td:first-child {
+    color: #c7c7c7;
+}
+
+
+/* 3위 */
+
+tbody tr:nth-child(3) td:first-child {
+    color: #bd8d61;
+}
+
+
+/* =========================================================
+   닉네임
+========================================================= */
+
+.nickname-history {
+    color: #e0dbd1;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+    transition:
+        color 0.2s ease,
+        text-shadow 0.2s ease;
+}
+
+.nickname-history:hover {
+    color: #e5c47e;
+
+    text-decoration: none;
+
+    text-shadow:
+        0 0 12px rgba(214, 168, 95, 0.2);
+}
+
+
+/* =========================================================
+   전투력
+========================================================= */
+
+td:nth-child(5) {
+    color: #d5b778;
+
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   서버
+========================================================= */
+
+td:nth-child(6) {
+    color: #918a7e;
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   과거 기록 변화
+========================================================= */
+
+.history-up {
+    color: #d87361;
+
+    font-weight: 700;
+}
+
+.history-down {
+    color: #6294bf;
+
+    font-weight: 700;
+}
+
+.history-same {
+    color: #77736c;
+}
+
+
+/* =========================================================
+   푸터
+========================================================= */
+
+footer {
+    margin-top: 0;
+
+    padding: 32px 20px 45px;
+
+    text-align: center;
+
+    color: #4e4a44;
+
+    border-top: 1px solid rgba(255, 255, 255, 0.035);
+
+    font-size: 12px;
+
+    letter-spacing: 1px;
+}
+
+footer p {
+    margin: 0;
+}
+
+
+/* =========================================================
+   로딩 / 검색 결과
+========================================================= */
+
+#rankingBody td[colspan] {
+    height: 120px;
+
+    color: #777269;
+
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   모바일
+========================================================= */
+
+@media (max-width: 900px) {
+
+    header {
+        padding: 0 25px;
+    }
+
+    main {
+        padding: 45px 18px 70px;
+    }
+
+    .ranking {
+        padding: 30px 20px;
+    }
+
+    .search-box {
+        align-items: stretch;
+    }
+
+    .search-box input {
+        width: 100%;
+    }
+
+    .search-box select {
+        flex: 1;
+        min-width: 130px;
+    }
+
+    .search-box button {
+        flex: 0 0 auto;
+    }
+
+}
+
+
+/* =========================================================
+   작은 모바일
+========================================================= */
+
+@media (max-width: 600px) {
+
+    header {
+        position: relative;
+
+        height: auto;
+
+        padding: 20px;
+
+        flex-direction: column;
+
+        gap: 14px;
+    }
+
+    header h1 {
+        font-size: 22px;
+        letter-spacing: 2px;
+    }
+
+    nav a {
+        padding: 0;
+
+        font-size: 13px;
+    }
+
+    nav a::after {
+        bottom: -5px;
+    }
+
+    main {
+        padding: 25px 10px 50px;
+    }
+
+    .ranking {
+        padding: 25px 12px;
+
+        border-radius: 3px;
+    }
+
+    .ranking h2 {
+        font-size: 27px;
+
+        letter-spacing: 5px;
+
+        margin-bottom: 28px;
+    }
+
+    .search-box {
+        padding: 13px;
+
+        gap: 8px;
+    }
+
+    .search-box input,
+    .search-box select,
+    .search-box button {
+        width: 100%;
+
+        flex: none;
+    }
+
+    #rankingStatus {
+        margin-left: 2px;
+    }
+
+    table {
+        min-width: 720px;
+    }
+
+    .ranking {
+        overflow-x: auto;
+    }
+
+}
+
+
+/* =========================================================
+   아주 작은 화면
+========================================================= */
+
+@media (max-width: 400px) {
+
+    .ranking h2 {
+        font-size: 24px;
+    }
+
+    header h1 {
+        font-size: 20px;
+    }
+
+}
