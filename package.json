@@ -1,0 +1,12 @@
+{
+  "name": "asdal-gg",
+  "version": "1.0.0",
+  "description": "아스달 지지 랭킹 사이트",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
