@@ -36,6 +36,11 @@ if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
+
+// ========================================
+// 공통
+// ========================================
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -72,7 +77,7 @@ function requestRanking(worldId) {
             "&worldId=" + worldId +
             "&name=";
 
-        console.log("[API]", apiUrl);
+        console.log("[RANKING API]", apiUrl);
 
         https.get(
             apiUrl,
@@ -96,8 +101,7 @@ function requestRanking(worldId) {
 
                         reject(
                             new Error(
-                                "HTTP " +
-                                response.statusCode
+                                "HTTP " + response.statusCode
                             )
                         );
 
@@ -106,17 +110,14 @@ function requestRanking(worldId) {
 
                     try {
 
-                        const json =
-                            JSON.parse(body);
+                        const json = JSON.parse(body);
 
                         resolve(json);
 
                     } catch (error) {
 
                         reject(
-                            new Error(
-                                "JSON parse error"
-                            )
+                            new Error("JSON parse error")
                         );
 
                     }
@@ -125,7 +126,9 @@ function requestRanking(worldId) {
 
             }
         ).on("error", error => {
+
             reject(error);
+
         });
 
     });
@@ -137,20 +140,10 @@ function requestRanking(worldId) {
 // 월드별 랭킹
 // ========================================
 
-async function getWorldRanking(
-    serverName,
-    worldId
-) {
+async function getWorldRanking(serverName, worldId) {
 
-    console.log(
-        "================================"
-    );
-
-    console.log(
-        "[WORLD] " +
-        serverName +
-        " START"
-    );
+    console.log("================================");
+    console.log("[WORLD] " + serverName + " START");
 
     try {
 
@@ -160,9 +153,7 @@ async function getWorldRanking(
         if (
             !response ||
             !response.resultData ||
-            !Array.isArray(
-                response.resultData.resData
-            )
+            !Array.isArray(response.resultData.resData)
         ) {
 
             console.log(
@@ -196,7 +187,6 @@ async function getWorldRanking(
             )
         );
 
-
         const results =
             players.map(player => {
 
@@ -211,10 +201,7 @@ async function getWorldRanking(
 
         // 중복 제거
         const uniqueResults = [];
-
-        const duplicateKeys =
-            new Set();
-
+        const duplicateKeys = new Set();
 
         results.forEach(player => {
 
@@ -223,15 +210,9 @@ async function getWorldRanking(
                 "|" +
                 String(player.name || "");
 
-
-            if (
-                duplicateKeys.has(key)
-            ) {
-
+            if (duplicateKeys.has(key)) {
                 return;
-
             }
-
 
             duplicateKeys.add(key);
 
@@ -241,30 +222,23 @@ async function getWorldRanking(
 
 
         // 전투력 순
-        uniqueResults.sort(
-            (a, b) => {
+        uniqueResults.sort((a, b) => {
 
-                return (
-                    (Number(b.power) || 0) -
-                    (Number(a.power) || 0)
-                );
+            return (
+                (Number(b.power) || 0) -
+                (Number(a.power) || 0)
+            );
 
-            }
-        );
+        });
 
 
-        // 월드 랭킹
-        uniqueResults.forEach(
-            (player, index) => {
+        // 월드 순위
+        uniqueResults.forEach((player, index) => {
 
-                player.rank =
-                    index + 1;
+            player.rank = index + 1;
+            player.totalRank = index + 1;
 
-                player.totalRank =
-                    index + 1;
-
-            }
-        );
+        });
 
 
         console.log(
@@ -274,9 +248,7 @@ async function getWorldRanking(
             uniqueResults.length
         );
 
-
         return uniqueResults;
-
 
     } catch (error) {
 
@@ -317,10 +289,7 @@ async function getAllRanking() {
                 i + BATCH_SIZE
             );
 
-
-        console.log(
-            "================================"
-        );
+        console.log("================================");
 
         console.log(
             "[BATCH] " +
@@ -335,29 +304,23 @@ async function getAllRanking() {
 
         const batchResults =
             await Promise.all(
-                batch.map(
-                    ([serverName, worldId]) => {
+                batch.map(([serverName, worldId]) => {
 
-                        return getWorldRanking(
-                            serverName,
-                            worldId
-                        );
+                    return getWorldRanking(
+                        serverName,
+                        worldId
+                    );
 
-                    }
-                )
+                })
             );
 
 
-        batchResults.forEach(
-            serverData => {
+        batchResults.forEach(serverData => {
 
-                results =
-                    results.concat(
-                        serverData
-                    );
+            results =
+                results.concat(serverData);
 
-            }
-        );
+        });
 
 
         await sleep(300);
@@ -367,10 +330,7 @@ async function getAllRanking() {
 
     // 중복 제거
     const uniqueResults = [];
-
-    const duplicateKeys =
-        new Set();
-
+    const duplicateKeys = new Set();
 
     results.forEach(player => {
 
@@ -379,15 +339,9 @@ async function getAllRanking() {
             "|" +
             String(player.name || "");
 
-
-        if (
-            duplicateKeys.has(key)
-        ) {
-
+        if (duplicateKeys.has(key)) {
             return;
-
         }
-
 
         duplicateKeys.add(key);
 
@@ -396,33 +350,26 @@ async function getAllRanking() {
     });
 
 
-    // 전체 서버 전투력 순
-    uniqueResults.sort(
-        (a, b) => {
+    // 전체 전투력 순
+    uniqueResults.sort((a, b) => {
 
-            return (
-                (Number(b.power) || 0) -
-                (Number(a.power) || 0)
-            );
+        return (
+            (Number(b.power) || 0) -
+            (Number(a.power) || 0)
+        );
 
-        }
-    );
+    });
 
 
-    // 전체 서버 순위
-    uniqueResults.forEach(
-        (player, index) => {
+    // 전체 순위
+    uniqueResults.forEach((player, index) => {
 
-            player.totalRank =
-                index + 1;
+        player.totalRank = index + 1;
 
-        }
-    );
+    });
 
 
-    console.log(
-        "================================"
-    );
+    console.log("================================");
 
     console.log(
         "[ALL] TOTAL " +
@@ -436,83 +383,173 @@ async function getAllRanking() {
 
 
 // ========================================
-// 일일 랭킹 저장
+// 거래소 API
 // ========================================
 
-function saveDailyRanking(ranking) {
+function requestAuction(itemName = "") {
 
-    return new Promise(
-        (resolve, reject) => {
+    return new Promise((resolve, reject) => {
 
-            const today =
-                getTodayDate();
-
-            const filePath =
-                getHistoryFile(today);
-
-
-            if (
-                fs.existsSync(filePath)
-            ) {
-
-                resolve(false);
-
-                return;
-
-            }
+        const apiUrl =
+            "https://arthdal.netmarble.com/front-api/auction" +
+            "?worldId=-3000" +
+            "&lang=ko" +
+            "&page=1" +
+            "&row=50" +
+            "&reinforce_level_start=0" +
+            "&reinforce_level_end=20" +
+            "&tiers=0,1,2,3,4" +
+            "&categories=0,3,1,2,97,110,124,130,140,6,7,8,9,10,11,5,12,15,13,14,16,117,20,21,19,22,68,69,70,71,72,78,79,80,81,82,83,84,85,86,67,63,64,58,59,60,61,55,56,96,47,48,49,50,51,52,53,54,109,26,27,29,44,45,46,35,36,33,65" +
+            "&itemname=" +
+            encodeURIComponent(itemName);
 
 
-            const saveData = {
-
-                date: today,
-
-                savedAt:
-                    new Date().toISOString(),
-
-                total:
-                    ranking.length,
-
-                data:
-                    ranking
-
-            };
+        console.log(
+            "[AUCTION API]",
+            apiUrl
+        );
 
 
-            fs.writeFile(
-                filePath,
-                JSON.stringify(
-                    saveData,
-                    null,
-                    2
-                ),
-                "utf8",
-                error => {
+        https.get(
+            apiUrl,
+            {
+                headers: {
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept": "application/json"
+                }
+            },
+            response => {
 
-                    if (error) {
+                let body = "";
 
-                        reject(error);
+                response.on("data", chunk => {
+
+                    body += chunk;
+
+                });
+
+
+                response.on("end", () => {
+
+                    if (response.statusCode !== 200) {
+
+                        reject(
+                            new Error(
+                                "Auction HTTP " +
+                                response.statusCode
+                            )
+                        );
 
                         return;
 
                     }
 
 
-                    console.log(
-                        "[SAVE] " +
-                        today +
-                        " " +
-                        ranking.length +
-                        "명"
-                    );
+                    try {
+
+                        const json =
+                            JSON.parse(body);
+
+                        resolve(json);
+
+                    } catch (error) {
+
+                        reject(
+                            new Error(
+                                "Auction JSON parse error"
+                            )
+                        );
+
+                    }
+
+                });
+
+            }
+        ).on("error", error => {
+
+            reject(error);
+
+        });
+
+    });
+
+}
 
 
-                    resolve(true);
+// ========================================
+// 일일 랭킹 저장
+// ========================================
 
-                }
-            );
+function saveDailyRanking(ranking) {
+
+    return new Promise((resolve, reject) => {
+
+        const today =
+            getTodayDate();
+
+        const filePath =
+            getHistoryFile(today);
+
+
+        if (fs.existsSync(filePath)) {
+
+            resolve(false);
+
+            return;
 
         }
-    );
+
+
+        const saveData = {
+
+            date: today,
+
+            savedAt:
+                new Date().toISOString(),
+
+            total:
+                ranking.length,
+
+            data:
+                ranking
+
+        };
+
+
+        fs.writeFile(
+            filePath,
+            JSON.stringify(
+                saveData,
+                null,
+                2
+            ),
+            "utf8",
+            error => {
+
+                if (error) {
+
+                    reject(error);
+
+                    return;
+
+                }
+
+
+                console.log(
+                    "[SAVE] " +
+                    today +
+                    " " +
+                    ranking.length +
+                    "명"
+                );
+
+
+                resolve(true);
+
+            }
+        );
+
+    });
 
 }
 
@@ -523,9 +560,7 @@ function saveDailyRanking(ranking) {
 
 function getHistoryDates() {
 
-    if (
-        !fs.existsSync(DATA_DIR)
-    ) {
+    if (!fs.existsSync(DATA_DIR)) {
 
         return [];
 
@@ -567,9 +602,7 @@ function getHistoryRanking(date) {
         getHistoryFile(date);
 
 
-    if (
-        !fs.existsSync(filePath)
-    ) {
+    if (!fs.existsSync(filePath)) {
 
         return null;
 
@@ -587,7 +620,6 @@ function getHistoryRanking(date) {
 
         return JSON.parse(content);
 
-
     } catch (error) {
 
         return null;
@@ -601,11 +633,7 @@ function getHistoryRanking(date) {
 // JSON 응답
 // ========================================
 
-function sendJson(
-    res,
-    statusCode,
-    data
-) {
+function sendJson(res, statusCode, data) {
 
     res.writeHead(
         statusCode,
@@ -681,7 +709,7 @@ const server =
 
 
                 // ==================================
-                // 특정 서버
+                // 특정 서버 랭킹
                 // ==================================
 
                 if (
@@ -765,6 +793,45 @@ const server =
 
                             }
                         }
+                    );
+
+
+                    return;
+
+                }
+
+
+                // ==================================
+                // 거래소
+                // ==================================
+
+                if (
+                    requestUrl.pathname ===
+                    "/api/auction"
+                ) {
+
+                    const itemName =
+                        requestUrl.searchParams.get(
+                            "itemname"
+                        ) || "";
+
+
+                    console.log(
+                        "[AUCTION SEARCH]",
+                        itemName || "전체"
+                    );
+
+
+                    const auction =
+                        await requestAuction(
+                            itemName
+                        );
+
+
+                    sendJson(
+                        res,
+                        200,
+                        auction
                     );
 
 
@@ -858,26 +925,7 @@ const server =
 
                 }
 
-// ==================================
-// 거래소 조회
-// ==================================
 
-if (requestUrl.pathname === "/api/auction") {
-
-    const itemName =
-        requestUrl.searchParams.get("itemname") || "";
-
-    const auction =
-        await requestAuction(itemName);
-
-    sendJson(
-        res,
-        200,
-        auction
-    );
-
-    return;
-}
                 // ==================================
                 // 정적 파일
                 // ==================================
@@ -915,6 +963,7 @@ if (requestUrl.pathname === "/api/auction") {
                 }
 
 
+                // 보안
                 if (
                     !filePath.startsWith(
                         __dirname
@@ -923,7 +972,9 @@ if (requestUrl.pathname === "/api/auction") {
 
                     res.writeHead(403);
 
-                    res.end("Forbidden");
+                    res.end(
+                        "Forbidden"
+                    );
 
                     return;
 
@@ -1014,6 +1065,7 @@ if (requestUrl.pathname === "/api/auction") {
                     500,
                     {
                         error:
+                            error.message ||
                             "server error"
                     }
                 );
@@ -1063,9 +1115,7 @@ let dailySaveRunning = false;
 
 async function checkDailySave() {
 
-    if (
-        dailySaveRunning
-    ) {
+    if (dailySaveRunning) {
 
         return;
 
@@ -1080,9 +1130,7 @@ async function checkDailySave() {
         getHistoryFile(today);
 
 
-    if (
-        fs.existsSync(filePath)
-    ) {
+    if (fs.existsSync(filePath)) {
 
         return;
 
@@ -1133,77 +1181,3 @@ setInterval(
     },
     60 * 1000
 );
-// ========================================
-// 거래소 API
-// ========================================
-
-function requestAuction(itemName = "") {
-
-    return new Promise((resolve, reject) => {
-
-        const apiUrl =
-            "https://arthdal.netmarble.com/front-api/auction" +
-            "?worldId=-3000" +
-            "&lang=ko" +
-            "&page=1" +
-            "&row=50" +
-            "&reinforce_level_start=0" +
-            "&reinforce_level_end=20" +
-            "&tiers=0,1,2,3,4" +
-            "&categories=0,3,1,2,97,110,124,130,140,6,7,8,9,10,11,5,12,15,13,14,16,117,20,21,19,22,68,69,70,71,72,78,79,80,81,82,83,84,85,86,67,63,64,58,59,60,61,55,56,96,47,48,49,50,51,52,53,54,109,26,27,29,44,45,46,35,36,33,65" +
-            "&itemname=" +
-            encodeURIComponent(itemName);
-
-        https.get(
-            apiUrl,
-            {
-                headers: {
-                    "User-Agent": "Mozilla/5.0",
-                    "Accept": "application/json"
-                }
-            },
-            response => {
-
-                let body = "";
-
-                response.on("data", chunk => {
-                    body += chunk;
-                });
-
-                response.on("end", () => {
-
-                    if (response.statusCode !== 200) {
-
-                        reject(
-                            new Error(
-                                "HTTP " + response.statusCode
-                            )
-                        );
-
-                        return;
-                    }
-
-                    try {
-
-                        resolve(
-                            JSON.parse(body)
-                        );
-
-                    } catch (error) {
-
-                        reject(error);
-
-                    }
-
-                });
-
-            }
-        ).on("error", error => {
-
-            reject(error);
-
-        });
-
-    });
-
-}
