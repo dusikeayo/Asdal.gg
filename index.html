@@ -3,8 +3,6 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>아스달 지지</title>
 
     <link rel="stylesheet" href="style.css">
@@ -12,50 +10,18 @@
 
 <body>
 
-    <!-- ==============================
-         HEADER
-    =============================== -->
-
     <header>
-
         <h1>아스달 지지</h1>
 
         <nav>
-
-            <a
-                href="#"
-                id="rankingNav"
-            >
-                랭킹
-            </a>
-
-            <a
-                href="#"
-                id="marketNav"
-            >
-                아이템 시세
-            </a>
-
+            <a href="#">랭킹</a>
         </nav>
-
     </header>
 
 
-    <!-- ==============================
-         MAIN
-    =============================== -->
-
     <main>
 
-
-        <!-- ==============================
-             RANKING SECTION
-        =============================== -->
-
-        <section
-            class="ranking"
-            id="rankingSection"
-        >
+        <section class="ranking">
 
             <h2>랭킹</h2>
 
@@ -75,6 +41,10 @@
 
                     <option value="all">
                         전체 서버
+                    </option>
+
+                    <option value="">
+                        서버 선택
                     </option>
 
                 </select>
@@ -108,10 +78,7 @@
                 </select>
 
 
-                <button
-                    id="searchButton"
-                    type="button"
-                >
+                <button id="searchButton">
                     검색
                 </button>
 
@@ -151,163 +118,15 @@
 
         </section>
 
-
-
-        <!-- ==============================
-             MARKET SECTION
-        =============================== -->
-
-        <section
-            class="market"
-            id="marketSection"
-            style="display: none;"
-        >
-
-            <h2>아이템 시세</h2>
-
-
-            <!-- 아이템 검색 영역 -->
-
-            <div class="market-search-box">
-
-
-                <input
-                    type="text"
-                    id="itemSearchInput"
-                    placeholder="아이템 이름을 검색하세요"
-                >
-
-
-                <!-- 등급 -->
-
-                <select id="itemTierFilter">
-
-                    <option value="all">
-                        전체 등급
-                    </option>
-
-                    <option value="일반">
-                        일반
-                    </option>
-
-                    <option value="고급">
-                        고급
-                    </option>
-
-                    <option value="희귀">
-                        희귀
-                    </option>
-
-                    <option value="영웅">
-                        영웅
-                    </option>
-
-                    <option value="전설">
-                        전설
-                    </option>
-
-                </select>
-
-
-                <!-- 정렬 -->
-
-                <select id="itemSortFilter">
-
-                    <option value="lowest">
-                        최저가 낮은 순
-                    </option>
-
-                    <option value="highest">
-                        최고가 높은 순
-                    </option>
-
-                    <option value="average">
-                        평균가 높은 순
-                    </option>
-
-                    <option value="trade">
-                        거래량 많은 순
-                    </option>
-
-                </select>
-
-
-                <button
-                    id="itemSearchButton"
-                    type="button"
-                >
-                    검색
-                </button>
-
-
-            </div>
-
-
-            <!-- 시세 상태 -->
-
-            <div id="marketStatus"></div>
-
-
-            <!-- 아이템 시세 표 -->
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>아이템</th>
-
-                        <th>등급</th>
-
-                        <th>품질</th>
-
-                        <th>최저가</th>
-
-                        <th>평균가</th>
-
-                        <th>최고가</th>
-
-                        <th>거래량</th>
-
-                        <th>현재 등록</th>
-
-                    </tr>
-
-                </thead>
-
-
-                <tbody id="marketBody">
-
-                </tbody>
-
-            </table>
-
-
-        </section>
-
-
     </main>
 
 
-
-    <!-- ==============================
-         FOOTER
-    =============================== -->
-
     <footer>
 
-        <p>
-            아스달 지지
-        </p>
+        <p>아스달 지지</p>
 
     </footer>
 
-
-
-    <!-- ==============================
-         SCRIPT
-    =============================== -->
 
     <script src="script.js"></script>
 
