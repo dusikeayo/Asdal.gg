@@ -928,9 +928,9 @@ function displayRanking(data) {
                     class="nickname-history"
                     style="
                         cursor:pointer;
-                        color:#4da6ff;
-                        font-weight:bold;
-                        text-decoration:underline;
+                        color:#fff;
+                        font-weight:600;
+                        text-decoration:none;
                     "
                     title="클릭하면 과거 기록을 확인할 수 있습니다."
                 >
@@ -1351,7 +1351,6 @@ async function openPlayerHistory(player) {
     `;
 
 
-    // 강제로 화면에 표시
     modal.style.display = "flex";
 
 
@@ -1457,7 +1456,6 @@ async function openPlayerHistory(player) {
                 margin-bottom:30px;
             ">
 
-
                 <div style="
                     background:#1c1c1c;
                     border-radius:10px;
@@ -1551,7 +1549,6 @@ async function openPlayerHistory(player) {
                     </div>
 
                 </div>
-
 
             </div>
 
@@ -1779,7 +1776,6 @@ function createHistoryModal() {
         "playerHistoryModal";
 
 
-    // CSS 파일과 관계없이 무조건 보이도록 설정
     modal.style.position = "fixed";
     modal.style.top = "0";
     modal.style.left = "0";
@@ -1903,7 +1899,6 @@ function createHistoryModal() {
     );
 
 
-    // ESC 키로 닫기
     document.addEventListener(
         "keydown",
         function (event) {
@@ -2454,7 +2449,7 @@ function displayMarket(data) {
             filtered.sort(
                 function (a, b) {
 
-                    return (
+                return (
                         getItemHighestPrice(b) -
                         getItemHighestPrice(a)
                     );
