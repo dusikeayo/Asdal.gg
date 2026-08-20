@@ -1,4 +1,3 @@
-```js
 const http = require("http");
 const https = require("https");
 const fs = require("fs");
@@ -11,15 +10,17 @@ const ROW_PER_PAGE = 500;
 const BATCH_SIZE = 3;
 
 
-// ========================================
+// ============================================================
 // 랭킹 서버
-// ========================================
+// ============================================================
 
 const worlds = {
     "크라본": 70110,
+
     "하제산": 32201,
     "추산도": 32202,
     "남달산": 32203,
+
     "이브나": 12301,
     "이나이신기": 12302,
     "윤슬": 12303,
@@ -27,6 +28,7 @@ const worlds = {
     "다르쿠스": 12305,
     "미하제": 12306,
     "시아르": 12307,
+
     "토로스": 92701,
     "레오": 70314,
     "벨라": 70315,
@@ -37,60 +39,65 @@ const worlds = {
 };
 
 
-// ========================================
+// ============================================================
 // 거래소 서버
-// ========================================
+// ============================================================
 
-const auctionWorlds = {
+const auctionServers = {
+    "newworld": {
+        name: "뉴월드",
+        worldId: 3000
+    },
 
-    "뉴월드": 3000,
+    "krabon": {
+        name: "크라본",
+        worldId: 70110
+    },
 
-    "글로벌": 1000,
-
-    "크라본": 70110
-
+    "global": {
+        name: "글로벌",
+        worldId: 1000
+    }
 };
 
 
-// ========================================
+// ============================================================
 // 데이터 폴더
-// ========================================
+// ============================================================
 
-const DATA_DIR = path.join(__dirname, "data");
+const DATA_DIR =
+    path.join(__dirname, "data");
 
 if (!fs.existsSync(DATA_DIR)) {
-
     fs.mkdirSync(
         DATA_DIR,
         {
             recursive: true
         }
     );
-
 }
 
 
-// ========================================
+// ============================================================
 // 공통
-// ========================================
+// ============================================================
 
 function sleep(ms) {
 
-    return new Promise(resolve => {
-
-        setTimeout(
+    return new Promise(
+        resolve => setTimeout(
             resolve,
             ms
-        );
-
-    });
+        )
+    );
 
 }
 
 
 function getTodayDate() {
 
-    const now = new Date();
+    const now =
+        new Date();
 
     const year =
         now.getFullYear();
@@ -111,13 +118,7 @@ function getTodayDate() {
             "0"
         );
 
-    return (
-        year +
-        "-" +
-        month +
-        "-" +
-        day
-    );
+    return `${year}-${month}-${day}`;
 
 }
 
@@ -126,15 +127,15 @@ function getHistoryFile(date) {
 
     return path.join(
         DATA_DIR,
-        date + ".json"
+        `${date}.json`
     );
 
 }
 
 
-// ========================================
-// 넷마블 랭킹 API
-// ========================================
+// ============================================================
+// 랭킹 API
+// ============================================================
 
 function requestRanking(worldId) {
 
@@ -190,7 +191,8 @@ function requestRanking(worldId) {
                         () => {
 
                             if (
-                                response.statusCode !== 200
+                                response.statusCode !==
+                                200
                             ) {
 
                                 reject(
@@ -216,7 +218,9 @@ function requestRanking(worldId) {
                                     json
                                 );
 
-                            } catch (error) {
+                            } catch (
+                                error
+                            ) {
 
                                 reject(
                                     new Error(
@@ -247,9 +251,9 @@ function requestRanking(worldId) {
 }
 
 
-// ========================================
+// ============================================================
 // 월드별 랭킹
-// ========================================
+// ============================================================
 
 async function getWorldRanking(
     serverName,
@@ -349,11 +353,13 @@ async function getWorldRanking(
 
                 const key =
                     String(
-                        player.server || ""
+                        player.server ||
+                        ""
                     ) +
                     "|" +
                     String(
-                        player.name || ""
+                        player.name ||
+                        ""
                     );
 
 
@@ -385,8 +391,16 @@ async function getWorldRanking(
             (a, b) => {
 
                 return (
-                    (Number(b.power) || 0) -
-                    (Number(a.power) || 0)
+                    (
+                        Number(
+                            b.power
+                        ) || 0
+                    ) -
+                    (
+                        Number(
+                            a.power
+                        ) || 0
+                    )
                 );
 
             }
@@ -417,13 +431,16 @@ async function getWorldRanking(
         return uniqueResults;
 
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         console.error(
             "[ERROR] " +
             serverName,
             error.message
         );
+
 
         return [];
 
@@ -432,13 +449,14 @@ async function getWorldRanking(
 }
 
 
-// ========================================
-// 전체 서버 랭킹
-// ========================================
+// ============================================================
+// 전체 랭킹
+// ============================================================
 
 async function getAllRanking() {
 
     let results = [];
+
 
     const entries =
         Object.entries(
@@ -520,11 +538,13 @@ async function getAllRanking() {
 
             const key =
                 String(
-                    player.server || ""
+                    player.server ||
+                    ""
                 ) +
                 "|" +
                 String(
-                    player.name || ""
+                    player.name ||
+                    ""
                 );
 
 
@@ -556,8 +576,16 @@ async function getAllRanking() {
         (a, b) => {
 
             return (
-                (Number(b.power) || 0) -
-                (Number(a.power) || 0)
+                (
+                    Number(
+                        b.power
+                    ) || 0
+                ) -
+                (
+                    Number(
+                        a.power
+                    ) || 0
+                )
             );
 
         }
@@ -590,13 +618,13 @@ async function getAllRanking() {
 }
 
 
-// ========================================
+// ============================================================
 // 거래소 API
-// ========================================
+// ============================================================
 
 function requestAuction(
-    worldId,
-    itemName = ""
+    itemName = "",
+    worldId = 3000
 ) {
 
     return new Promise(
@@ -631,13 +659,11 @@ function requestAuction(
                 apiUrl,
                 {
                     headers: {
-
                         "User-Agent":
                             "Mozilla/5.0",
 
                         "Accept":
                             "application/json"
-
                     }
                 },
                 response => {
@@ -660,7 +686,8 @@ function requestAuction(
                         () => {
 
                             if (
-                                response.statusCode !== 200
+                                response.statusCode !==
+                                200
                             ) {
 
                                 reject(
@@ -686,7 +713,9 @@ function requestAuction(
                                     json
                                 );
 
-                            } catch (error) {
+                            } catch (
+                                error
+                            ) {
 
                                 reject(
                                     new Error(
@@ -717,9 +746,9 @@ function requestAuction(
 }
 
 
-// ========================================
+// ============================================================
 // 일일 랭킹 저장
-// ========================================
+// ============================================================
 
 function saveDailyRanking(
     ranking
@@ -813,9 +842,9 @@ function saveDailyRanking(
 }
 
 
-// ========================================
+// ============================================================
 // 과거 날짜
-// ========================================
+// ============================================================
 
 function getHistoryDates() {
 
@@ -857,9 +886,9 @@ function getHistoryDates() {
 }
 
 
-// ========================================
+// ============================================================
 // 과거 랭킹
-// ========================================
+// ============================================================
 
 function getHistoryRanking(
     date
@@ -907,7 +936,9 @@ function getHistoryRanking(
         );
 
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         return null;
 
@@ -916,9 +947,9 @@ function getHistoryRanking(
 }
 
 
-// ========================================
+// ============================================================
 // JSON 응답
-// ========================================
+// ============================================================
 
 function sendJson(
     res,
@@ -929,13 +960,11 @@ function sendJson(
     res.writeHead(
         statusCode,
         {
-
             "Content-Type":
                 "application/json; charset=utf-8",
 
             "Access-Control-Allow-Origin":
                 "*"
-
         }
     );
 
@@ -949,13 +978,16 @@ function sendJson(
 }
 
 
-// ========================================
+// ============================================================
 // 서버
-// ========================================
+// ============================================================
 
 const server =
     http.createServer(
-        async (req, res) => {
+        async (
+            req,
+            res
+        ) => {
 
             try {
 
@@ -967,9 +999,9 @@ const server =
                     );
 
 
-                // ==================================
+                // ==================================================
                 // 전체 랭킹
-                // ==================================
+                // ==================================================
 
                 if (
                     requestUrl.pathname ===
@@ -989,13 +1021,11 @@ const server =
                         res,
                         200,
                         {
-
                             total:
                                 ranking.length,
 
                             data:
                                 ranking
-
                         }
                     );
 
@@ -1005,9 +1035,9 @@ const server =
                 }
 
 
-                // ==================================
+                // ==================================================
                 // 특정 서버 랭킹
-                // ==================================
+                // ==================================================
 
                 if (
                     requestUrl.pathname ===
@@ -1078,7 +1108,6 @@ const server =
                         res,
                         200,
                         {
-
                             resultData: {
 
                                 resCode:
@@ -1091,7 +1120,6 @@ const server =
                                     ranking
 
                             }
-
                         }
                     );
 
@@ -1101,9 +1129,9 @@ const server =
                 }
 
 
-                // ==================================
+                // ==================================================
                 // 거래소
-                // ==================================
+                // ==================================================
 
                 if (
                     requestUrl.pathname ===
@@ -1116,33 +1144,28 @@ const server =
                         ) || "";
 
 
-                    const serverName =
+                    const server =
                         requestUrl.searchParams.get(
                             "server"
-                        ) || "뉴월드";
+                        ) || "newworld";
 
 
-                    const worldId =
-                        auctionWorlds[
-                            serverName
+                    const auctionServer =
+                        auctionServers[
+                            server
                         ];
 
 
-                    if (!worldId) {
+                    if (
+                        !auctionServer
+                    ) {
 
                         sendJson(
                             res,
                             400,
                             {
-
                                 error:
-                                    "잘못된 거래소 서버입니다.",
-
-                                availableServers:
-                                    Object.keys(
-                                        auctionWorlds
-                                    )
-
+                                    "invalid auction server"
                             }
                         );
 
@@ -1153,69 +1176,36 @@ const server =
 
                     console.log(
                         "[AUCTION SEARCH]",
-                        "서버:",
-                        serverName,
-                        "worldId:",
-                        worldId,
-                        "아이템:",
+                        auctionServer.name,
+                        auctionServer.worldId,
                         itemName || "전체"
                     );
 
 
                     const auction =
                         await requestAuction(
-                            worldId,
-                            itemName
+                            itemName,
+                            auctionServer.worldId
                         );
 
 
                     sendJson(
                         res,
                         200,
-                        auction
-                    );
-
-
-                    return;
-
-                }
-
-
-                // ==================================
-                // 거래소 서버 목록
-                // ==================================
-
-                if (
-                    requestUrl.pathname ===
-                    "/api/auction-servers"
-                ) {
-
-                    sendJson(
-                        res,
-                        200,
                         {
+                            server:
+                                auctionServer.name,
 
-                            servers: [
-                                {
-                                    name:
-                                        "뉴월드",
-                                    worldId:
-                                        3000
-                                },
-                                {
-                                    name:
-                                        "글로벌",
-                                    worldId:
-                                        1000
-                                },
-                                {
-                                    name:
-                                        "크라본",
-                                    worldId:
-                                        70110
-                                }
-                            ]
+                            worldId:
+                                auctionServer.worldId,
 
+                            data:
+                                auction.resultData
+                                    ? auction.resultData.resData || []
+                                    : auction.resData || [],
+
+                            raw:
+                                auction
                         }
                     );
 
@@ -1225,9 +1215,9 @@ const server =
                 }
 
 
-                // ==================================
+                // ==================================================
                 // 날짜 목록
-                // ==================================
+                // ==================================================
 
                 if (
                     requestUrl.pathname ===
@@ -1238,22 +1228,19 @@ const server =
                         res,
                         200,
                         {
-
                             dates:
                                 getHistoryDates()
-
                         }
                     );
-
 
                     return;
 
                 }
 
 
-                // ==================================
+                // ==================================================
                 // 과거 랭킹
-                // ==================================
+                // ==================================================
 
                 if (
                     requestUrl.pathname ===
@@ -1316,9 +1303,9 @@ const server =
                 }
 
 
-                // ==================================
+                // ==================================================
                 // 정적 파일
-                // ==================================
+                // ==================================================
 
                 let filePath;
 
@@ -1353,10 +1340,6 @@ const server =
 
                 }
 
-
-                // ==================================
-                // 보안
-                // ==================================
 
                 if (
                     !filePath.startsWith(
@@ -1417,7 +1400,10 @@ const server =
 
                 fs.readFile(
                     filePath,
-                    (error, content) => {
+                    (
+                        error,
+                        content
+                    ) => {
 
                         if (error) {
 
@@ -1437,13 +1423,11 @@ const server =
                         res.writeHead(
                             200,
                             {
-
                                 "Content-Type":
                                     contentTypes[
                                         ext
                                     ] ||
                                     "application/octet-stream"
-
                             }
                         );
 
@@ -1456,7 +1440,9 @@ const server =
                 );
 
 
-            } catch (error) {
+            } catch (
+                error
+            ) {
 
                 console.error(
                     "[SERVER ERROR]",
@@ -1468,11 +1454,9 @@ const server =
                     res,
                     500,
                     {
-
                         error:
                             error.message ||
                             "server error"
-
                     }
                 );
 
@@ -1482,9 +1466,9 @@ const server =
     );
 
 
-// ========================================
+// ============================================================
 // 서버 시작
-// ========================================
+// ============================================================
 
 server.listen(
     PORT,
@@ -1512,9 +1496,9 @@ server.listen(
 );
 
 
-// ========================================
+// ============================================================
 // 하루 1회 자동 저장
-// ========================================
+// ============================================================
 
 let dailySaveRunning =
     false;
@@ -1572,7 +1556,9 @@ async function checkDailySave() {
         );
 
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         console.error(
             "[DAILY SAVE ERROR]",
@@ -1598,4 +1584,3 @@ setInterval(
     },
     60 * 1000
 );
-```
