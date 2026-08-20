@@ -2661,3 +2661,513 @@ showRanking();
 loadHistoryDates();
 
 loadAllRanking();
+// ==============================
+// 아이템 거래소
+// ==============================
+
+const marketNav = document.getElementById("marketNav");
+const rankingNav = document.getElementById("rankingNav");
+
+const rankingSection = document.getElementById("rankingSection");
+const marketSection = document.getElementById("marketSection");
+
+const marketBody = document.getElementById("marketBody");
+const marketStatus = document.getElementById("marketStatus");
+
+const itemSearchInput = document.getElementById("itemSearchInput");
+const itemTierFilter = document.getElementById("itemTierFilter");
+const itemSortFilter = document.getElementById("itemSortFilter");
+const itemSearchButton = document.getElementById("itemSearchButton");
+
+
+// ==============================
+// 거래소 데이터
+// ==============================
+
+let marketData = [];
+
+
+// ==============================
+// 숫자 표시
+// ==============================
+
+function formatMarketNumber(value) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return "-";
+
+    }
+
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+
+        return "-";
+
+    }
+
+    return number.toLocaleString();
+
+}
+
+
+// ==============================
+// 거래소 이동
+// ==============================
+
+marketNav.addEventListener(
+    "click",
+    async function (event) {
+
+        event.preventDefault();
+
+        rankingSection.style.display = "none";
+
+        marketSection.style.display = "block";
+
+        await loadMarket();
+
+    }
+);
+
+
+// ==============================
+// 랭킹 이동
+// ==============================
+
+rankingNav.addEventListener(
+    "click",
+    function (event) {
+
+        event.preventDefault();
+
+        marketSection.style.display = "none";
+
+        rankingSection.style.display = "block";
+
+    }
+);
+
+
+// ==============================
+// 거래소 데이터 불러오기
+// ==============================
+
+async function loadMarket() {
+
+    marketBody.innerHTML = `
+        <tr>
+            <td colspan="8">
+                거래소 데이터를 불러오는 중입니다...
+            </td>
+        </tr>
+    `;
+
+    try {
+
+        const response =
+            await fetch("/api/market");
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "거래소 서버 오류: " +
+                response.status
+            );
+
+        }
+
+
+        const result =
+            await response.json();
+
+
+        if (
+            !result.resultData ||
+            !result.resultData.resData
+        ) {
+
+            throw new Error(
+                "거래소 데이터 형식 오류"
+            );
+
+        }
+
+
+        marketData =
+            result.resultData.resData;
+
+
+        marketStatus.textContent =
+            "전체 아이템 " +
+            marketData.length.toLocaleString() +
+            "개";
+
+
+        applyMarketFilters();
+
+
+    } catch (error) {
+
+        console.error(
+            "거래소 데이터 불러오기 실패:",
+            error
+        );
+
+
+        marketBody.innerHTML = `
+            <tr>
+                <td colspan="8">
+                    거래소 데이터를 불러오지 못했습니다.
+                </td>
+            </tr>
+        `;
+
+        marketStatus.textContent =
+            "거래소 데이터를 불러오지 못했습니다.";
+
+    }
+
+}
+
+
+// ==============================
+// 거래소 검색 / 필터 / 정렬
+// ==============================
+
+function applyMarketFilters() {
+
+    const keyword =
+        itemSearchInput.value.trim();
+
+    const tier =
+        itemTierFilter.value;
+
+
+    let filteredData =
+        marketData.filter(
+            function (item) {
+
+                const itemName =
+                    String(
+                        item.item_name || ""
+                    );
+
+
+                const keywordMatch =
+                    itemName.includes(
+                        keyword
+                    );
+
+
+                const tierMatch =
+                    tier === "all" ||
+                    item.tier === tier;
+
+
+                return (
+                    keywordMatch &&
+                    tierMatch
+                );
+
+            }
+        );
+
+
+    // 최저가 낮은 순
+
+    if (
+        itemSortFilter.value === "lowest"
+    ) {
+
+        filteredData.sort(
+            function (a, b) {
+
+                return (
+                    (Number(a.trade_lowest_price) || 0) -
+                    (Number(b.trade_lowest_price) || 0)
+                );
+
+            }
+        );
+
+    }
+
+
+    // 최고가 높은 순
+
+    if (
+        itemSortFilter.value === "highest"
+    ) {
+
+        filteredData.sort(
+            function (a, b) {
+
+                return (
+                    (Number(b.trade_highest_price) || 0) -
+                    (Number(a.trade_highest_price) || 0)
+                );
+
+            }
+        );
+
+    }
+
+
+    // 평균가 높은 순
+
+    if (
+        itemSortFilter.value === "average"
+    ) {
+
+        filteredData.sort(
+            function (a, b) {
+
+                return (
+                    (Number(b.trade_avg_price) || 0) -
+                    (Number(a.trade_avg_price) || 0)
+                );
+
+            }
+        );
+
+    }
+
+
+    // 거래량 많은 순
+
+    if (
+        itemSortFilter.value === "trade"
+    ) {
+
+        filteredData.sort(
+            function (a, b) {
+
+                return (
+                    (Number(b.trade_count) || 0) -
+                    (Number(a.trade_count) || 0)
+                );
+
+            }
+        );
+
+    }
+
+
+    displayMarket(
+        filteredData
+    );
+
+}
+
+
+// ==============================
+// 거래소 출력
+// ==============================
+
+function displayMarket(data) {
+
+    marketBody.innerHTML = "";
+
+
+    if (data.length === 0) {
+
+        marketBody.innerHTML = `
+            <tr>
+                <td colspan="8">
+                    검색 결과가 없습니다.
+                </td>
+            </tr>
+        `;
+
+        marketStatus.textContent =
+            "검색 결과 0개";
+
+        return;
+
+    }
+
+
+    marketStatus.textContent =
+        "검색 결과 " +
+        data.length.toLocaleString() +
+        "개";
+
+
+    data.forEach(
+        function (item) {
+
+            const row =
+                document.createElement("tr");
+
+
+            const itemName =
+                item.item_name || "-";
+
+
+            const iconUrl =
+                item.icon_url || "";
+
+
+            row.innerHTML = `
+
+                <td>
+
+                    <div
+                        style="
+                            display:flex;
+                            align-items:center;
+                            gap:10px;
+                            text-align:left;
+                        "
+                    >
+
+                        ${
+                            iconUrl
+                            ? `
+                                <img
+                                    src="${iconUrl}"
+                                    alt=""
+                                    width="36"
+                                    height="36"
+                                    style="
+                                        object-fit:contain;
+                                        image-rendering:auto;
+                                    "
+                                >
+                            `
+                            : ""
+                        }
+
+                        <span>
+                            ${itemName}
+                        </span>
+
+                    </div>
+
+                </td>
+
+
+                <td>
+                    ${item.tier || "-"}
+                </td>
+
+
+                <td>
+                    ${item.quality || "-"}
+                </td>
+
+
+                <td>
+                    ${formatMarketNumber(
+                        item.trade_lowest_price
+                    )}
+                </td>
+
+
+                <td>
+                    ${formatMarketNumber(
+                        item.trade_avg_price
+                    )}
+                </td>
+
+
+                <td>
+                    ${formatMarketNumber(
+                        item.trade_highest_price
+                    )}
+                </td>
+
+
+                <td>
+                    ${formatMarketNumber(
+                        item.trade_count
+                    )}
+                </td>
+
+
+                <td>
+                    ${formatMarketNumber(
+                        item.regist_count
+                    )}
+                </td>
+
+            `;
+
+
+            marketBody.appendChild(
+                row
+            );
+
+        }
+    );
+
+}
+
+
+// ==============================
+// 거래소 검색 버튼
+// ==============================
+
+itemSearchButton.addEventListener(
+    "click",
+    function () {
+
+        applyMarketFilters();
+
+    }
+);
+
+
+// ==============================
+// 거래소 엔터 검색
+// ==============================
+
+itemSearchInput.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key === "Enter"
+        ) {
+
+            applyMarketFilters();
+
+        }
+
+    }
+);
+
+
+// ==============================
+// 등급 변경
+// ==============================
+
+itemTierFilter.addEventListener(
+    "change",
+    function () {
+
+        applyMarketFilters();
+
+    }
+);
+
+
+// ==============================
+// 정렬 변경
+// ==============================
+
+itemSortFilter.addEventListener(
+    "change",
+    function () {
+
+        applyMarketFilters();
+
+    }
+);
