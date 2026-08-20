@@ -622,19 +622,39 @@ async function getAllRanking() {
 // 거래소 API
 // ============================================================
 
+// ============================================================
+// 거래소 API
+// ============================================================
+
 function requestAuction(
     itemName = "",
-    worldId = 3000
+    worldId
 ) {
 
     return new Promise(
         (resolve, reject) => {
 
+            if (
+                worldId === undefined ||
+                worldId === null
+            ) {
+
+                reject(
+                    new Error(
+                        "거래소 worldId가 없습니다."
+                    )
+                );
+
+                return;
+
+            }
+
+
             const apiUrl =
                 "https://arthdal.netmarble.com/front-api/auction" +
                 "?worldId=" +
                 encodeURIComponent(
-                    worldId
+                    String(worldId)
                 ) +
                 "&lang=ko" +
                 "&page=1" +
@@ -650,86 +670,159 @@ function requestAuction(
 
 
             console.log(
+                "================================"
+            );
+
+            console.log(
+                "[AUCTION REQUEST]"
+            );
+
+            console.log(
+                "[AUCTION WORLD ID]",
+                worldId
+            );
+
+            console.log(
+                "[AUCTION ITEM]",
+                itemName || "전체"
+            );
+
+            console.log(
                 "[AUCTION API]",
                 apiUrl
             );
 
 
-            https.get(
-                apiUrl,
-                {
-                    headers: {
-                        "User-Agent":
-                            "Mozilla/5.0",
+            const request =
+                https.get(
+                    apiUrl,
+                    {
+                        headers: {
 
-                        "Accept":
-                            "application/json"
-                    }
-                },
-                response => {
+                            "User-Agent":
+                                "Mozilla/5.0",
 
-                    let body = "";
+                            "Accept":
+                                "application/json",
 
-
-                    response.on(
-                        "data",
-                        chunk => {
-
-                            body += chunk;
+                            "Referer":
+                                "https://arthdal.netmarble.com/"
 
                         }
-                    );
+                    },
+                    response => {
+
+                        let body = "";
 
 
-                    response.on(
-                        "end",
-                        () => {
+                        response.setEncoding(
+                            "utf8"
+                        );
 
-                            if (
-                                response.statusCode !==
-                                200
-                            ) {
 
-                                reject(
-                                    new Error(
-                                        "Auction HTTP " +
-                                        response.statusCode
-                                    )
-                                );
+                        response.on(
+                            "data",
+                            chunk => {
 
-                                return;
+                                body += chunk;
 
                             }
+                        );
 
 
-                            try {
+                        response.on(
+                            "end",
+                            () => {
 
-                                const json =
-                                    JSON.parse(
-                                        body
+                                console.log(
+                                    "[AUCTION HTTP]",
+                                    response.statusCode,
+                                    "WORLD",
+                                    worldId
+                                );
+
+
+                                if (
+                                    response.statusCode !==
+                                    200
+                                ) {
+
+                                    reject(
+                                        new Error(
+                                            "Auction HTTP " +
+                                            response.statusCode +
+                                            " / worldId=" +
+                                            worldId
+                                        )
                                     );
 
-                                resolve(
-                                    json
-                                );
+                                    return;
 
-                            } catch (
-                                error
-                            ) {
+                                }
 
-                                reject(
-                                    new Error(
-                                        "Auction JSON parse error"
-                                    )
-                                );
+
+                                try {
+
+                                    const json =
+                                        JSON.parse(
+                                            body
+                                        );
+
+
+                                    /*
+                                     * API 응답에 실제 거래소 서버 정보가
+                                     * 들어오는 경우 그대로 유지하고,
+                                     * 서버 정보가 없더라도 현재 요청한
+                                     * worldId를 별도로 기억할 수 있게 함.
+                                     */
+
+                                    resolve({
+
+                                        ...json,
+
+                                        __requestedWorldId:
+                                            Number(
+                                                worldId
+                                            )
+
+                                    });
+
+
+                                } catch (
+                                    error
+                                ) {
+
+                                    console.error(
+                                        "[AUCTION JSON ERROR]",
+                                        error.message
+                                    );
+
+
+                                    console.error(
+                                        "[AUCTION BODY]",
+                                        body.substring(
+                                            0,
+                                            1000
+                                        )
+                                    );
+
+
+                                    reject(
+                                        new Error(
+                                            "Auction JSON parse error"
+                                        )
+                                    );
+
+                                }
 
                             }
+                        );
 
-                        }
-                    );
+                    }
+                );
 
-                }
-            ).on(
+
+            request.on(
                 "error",
                 error => {
 
