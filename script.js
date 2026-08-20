@@ -1,37 +1,124 @@
+```javascript
 // ============================================================
-// 아스달 지지 - 수정된 전체 script.js
-// 랭킹 + 서버 선택 + 과거 랭킹 + 아이템 시세
+// 아스달 지지 - 전체 script.js
+// 랭킹 + 거래소 서버별 시세
+// 뉴월드 / 글로벌 / 크라본
 // ============================================================
-
-const rankingBody = document.getElementById("rankingBody");
-const serverFilter = document.getElementById("serverFilter");
-const searchInput = document.getElementById("searchInput");
-const searchButton = document.getElementById("searchButton");
-const sortFilter = document.getElementById("sortFilter");
-const historyFilter = document.getElementById("historyFilter");
-const rankingStatus = document.getElementById("rankingStatus");
-
-const rankingNav = document.getElementById("rankingNav");
-const marketNav = document.getElementById("marketNav");
-const rankingSection = document.getElementById("rankingSection");
-const marketSection = document.getElementById("marketSection");
-
-const itemSearchInput = document.getElementById("itemSearchInput");
-const itemTierFilter = document.getElementById("itemTierFilter");
-const itemSortFilter = document.getElementById("itemSortFilter");
-const itemSearchButton = document.getElementById("itemSearchButton");
-const marketStatus = document.getElementById("marketStatus");
-const marketBody = document.getElementById("marketBody");
 
 
 // ============================================================
-// 서버 목록
+// HTML 요소
+// ============================================================
+
+const rankingBody =
+    document.getElementById("rankingBody");
+
+const serverFilter =
+    document.getElementById("serverFilter");
+
+const searchInput =
+    document.getElementById("searchInput");
+
+const searchButton =
+    document.getElementById("searchButton");
+
+const sortFilter =
+    document.getElementById("sortFilter");
+
+const historyFilter =
+    document.getElementById("historyFilter");
+
+const rankingStatus =
+    document.getElementById("rankingStatus");
+
+
+const rankingNav =
+    document.getElementById("rankingNav");
+
+const marketNav =
+    document.getElementById("marketNav");
+
+const rankingSection =
+    document.getElementById("rankingSection");
+
+const marketSection =
+    document.getElementById("marketSection");
+
+
+const itemSearchInput =
+    document.getElementById("itemSearchInput");
+
+const itemTierFilter =
+    document.getElementById("itemTierFilter");
+
+const itemSortFilter =
+    document.getElementById("itemSortFilter");
+
+const itemSearchButton =
+    document.getElementById("itemSearchButton");
+
+const marketStatus =
+    document.getElementById("marketStatus");
+
+const marketBody =
+    document.getElementById("marketBody");
+
+
+// ============================================================
+// 랭킹 서버
 // ============================================================
 
 const worlds = {
+
     "뉴월드": 3000,
     "글로벌": 1000,
     "크라본": 70110
+
+};
+
+
+// ============================================================
+// 랭킹 서버 그룹
+// ============================================================
+
+const serverGroups = {
+
+    "뉴월드": [
+        ["뉴월드", 3000]
+    ],
+
+    "글로벌": [
+        ["글로벌", 1000]
+    ],
+
+    "크라본": [
+        ["크라본", 70110]
+    ]
+
+};
+
+
+// ============================================================
+// 거래소 서버
+// ============================================================
+
+const auctionServers = {
+
+    "newworld": {
+        name: "뉴월드",
+        worldId: 3000
+    },
+
+    "global": {
+        name: "글로벌",
+        worldId: 1000
+    },
+
+    "krabon": {
+        name: "크라본",
+        worldId: 70110
+    }
+
 };
 
 
@@ -40,39 +127,172 @@ const worlds = {
 // ============================================================
 
 let currentData = [];
-let currentHistoryDate = "current";
+
+let currentHistoryDate =
+    "current";
+
 let historyCache = {};
+
 let currentMarketData = [];
+
+let currentAuctionServer =
+    "newworld";
 
 
 // ============================================================
-// 서버 선택창
+// 거래소 서버 선택창 생성
+// ============================================================
+
+let auctionServerFilter =
+    document.getElementById(
+        "auctionServerFilter"
+    );
+
+
+function buildAuctionServerFilter() {
+
+    if (!auctionServerFilter) {
+
+        const searchBox =
+            document.querySelector(
+                ".market-search-box"
+            );
+
+
+        if (!searchBox) {
+            return;
+        }
+
+
+        auctionServerFilter =
+            document.createElement(
+                "select"
+            );
+
+
+        auctionServerFilter.id =
+            "auctionServerFilter";
+
+
+        auctionServerFilter.innerHTML = `
+
+            <option value="newworld">
+                뉴월드 거래소
+            </option>
+
+            <option value="global">
+                글로벌 거래소
+            </option>
+
+            <option value="krabon">
+                크라본 거래소
+            </option>
+
+        `;
+
+
+        searchBox.insertBefore(
+            auctionServerFilter,
+            searchBox.firstChild
+        );
+
+    }
+
+
+    auctionServerFilter.value =
+        currentAuctionServer;
+
+
+    auctionServerFilter.addEventListener(
+        "change",
+        function () {
+
+            currentAuctionServer =
+                auctionServerFilter.value;
+
+
+            loadMarket();
+
+        }
+    );
+
+}
+
+
+// ============================================================
+// 랭킹 서버 선택창
 // ============================================================
 
 function buildServerFilter() {
 
-    if (!serverFilter) return;
+    if (!serverFilter) {
+        return;
+    }
+
 
     serverFilter.innerHTML = "";
 
-    const allOption = document.createElement("option");
 
-    allOption.value = "all";
-    allOption.textContent = "전체 서버";
-
-    serverFilter.appendChild(allOption);
+    const allOption =
+        document.createElement("option");
 
 
-    Object.entries(worlds).forEach(
-        ([serverName, worldId]) => {
+    allOption.value =
+        "all";
 
-            const option =
-                document.createElement("option");
 
-            option.value = String(worldId);
-            option.textContent = serverName;
+    allOption.textContent =
+        "전체 서버";
 
-            serverFilter.appendChild(option);
+
+    serverFilter.appendChild(
+        allOption
+    );
+
+
+    Object.entries(
+        serverGroups
+    ).forEach(
+        function ([groupName, servers]) {
+
+            const group =
+                document.createElement(
+                    "optgroup"
+                );
+
+
+            group.label =
+                groupName;
+
+
+            servers.forEach(
+                function ([serverName, worldId]) {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+
+                    option.value =
+                        worldId;
+
+
+                    option.textContent =
+                        serverName;
+
+
+                    group.appendChild(
+                        option
+                    );
+
+                }
+            );
+
+
+            serverFilter.appendChild(
+                group
+            );
 
         }
     );
@@ -86,17 +306,26 @@ function buildServerFilter() {
 
 function getServerName(worldId) {
 
-    return Object.keys(worlds).find(
-        name =>
-            String(worlds[name]) ===
-            String(worldId)
+    return Object.keys(
+        worlds
+    ).find(
+        function (name) {
+
+            return (
+                String(
+                    worlds[name]
+                ) ===
+                String(worldId)
+            );
+
+        }
     ) || "";
 
 }
 
 
 // ============================================================
-// 숫자
+// 숫자 표시
 // ============================================================
 
 function formatNumber(value) {
@@ -106,14 +335,22 @@ function formatNumber(value) {
         value === undefined ||
         value === ""
     ) {
+
         return "-";
+
     }
 
-    const number = Number(value);
+
+    const number =
+        Number(value);
+
 
     if (Number.isNaN(number)) {
+
         return "-";
+
     }
+
 
     return number.toLocaleString();
 
@@ -126,7 +363,9 @@ function formatNumber(value) {
 
 function formatChange(value) {
 
-    const number = Number(value) || 0;
+    const number =
+        Number(value) || 0;
+
 
     if (number > 0) {
 
@@ -138,6 +377,7 @@ function formatChange(value) {
 
     }
 
+
     if (number < 0) {
 
         return `
@@ -147,6 +387,7 @@ function formatChange(value) {
         `;
 
     }
+
 
     return `
         <span class="history-same">
@@ -158,58 +399,88 @@ function formatChange(value) {
 
 
 // ============================================================
-// 과거 날짜 목록
+// 과거 날짜
 // ============================================================
 
 async function loadHistoryDates() {
 
-    if (!historyFilter) return;
+    if (!historyFilter) {
+        return;
+    }
+
 
     try {
 
         const response =
-            await fetch("/api/history-dates");
+            await fetch(
+                "/api/history-dates"
+            );
 
-        if (!response.ok) return;
+
+        if (!response.ok) {
+            return;
+        }
+
 
         const result =
             await response.json();
 
+
         const dates =
-            Array.isArray(result.dates)
-                ? result.dates
-                : [];
+            result.dates || [];
 
 
         historyFilter.innerHTML = "";
 
 
         const currentOption =
-            document.createElement("option");
+            document.createElement(
+                "option"
+            );
 
-        currentOption.value = "current";
-        currentOption.textContent = "현재 랭킹";
+
+        currentOption.value =
+            "current";
+
+
+        currentOption.textContent =
+            "현재 랭킹";
+
 
         historyFilter.appendChild(
             currentOption
         );
 
 
-        dates.forEach(date => {
+        dates.forEach(
+            function (date) {
 
-            const option =
-                document.createElement("option");
+                const option =
+                    document.createElement(
+                        "option"
+                    );
 
-            option.value = date;
-            option.textContent = `${date} 랭킹`;
 
-            historyFilter.appendChild(option);
+                option.value =
+                    date;
 
-        });
+
+                option.textContent =
+                    date +
+                    " 랭킹";
+
+
+                historyFilter.appendChild(
+                    option
+                );
+
+            }
+        );
 
 
         historyFilter.value =
             currentHistoryDate;
+
 
     } catch (error) {
 
@@ -232,16 +503,21 @@ async function loadRanking() {
     const worldId =
         serverFilter.value;
 
+
     if (
         !worldId ||
         worldId === "all"
     ) {
+
         return;
+
     }
 
 
     const serverName =
-        getServerName(worldId);
+        getServerName(
+            worldId
+        );
 
 
     rankingBody.innerHTML = `
@@ -257,14 +533,18 @@ async function loadRanking() {
 
         const response =
             await fetch(
-                `/api/ranking?worldId=${encodeURIComponent(worldId)}`
+                "/api/ranking?worldId=" +
+                encodeURIComponent(
+                    worldId
+                )
             );
 
 
         if (!response.ok) {
 
             throw new Error(
-                `서버 오류 ${response.status}`
+                "서버 오류 " +
+                response.status
             );
 
         }
@@ -274,11 +554,12 @@ async function loadRanking() {
             await response.json();
 
 
-        const data =
-            result?.resultData?.resData;
-
-
-        if (!Array.isArray(data)) {
+        if (
+            !result.resultData ||
+            !Array.isArray(
+                result.resultData.resData
+            )
+        ) {
 
             throw new Error(
                 "랭킹 데이터 형식 오류"
@@ -288,14 +569,28 @@ async function loadRanking() {
 
 
         currentData =
-            data.map(player => ({
-                ...player,
-                server: player.server || serverName
-            }));
+            result.resultData.resData.map(
+                function (player) {
+
+                    return {
+
+                        ...player,
+
+                        server:
+                            serverName
+
+                    };
+
+                }
+            );
 
 
         rankingStatus.textContent =
-            `현재 랭킹 - ${serverName} / ${currentData.length.toLocaleString()}명`;
+            "현재 랭킹 - " +
+            serverName +
+            " / " +
+            currentData.length +
+            "명";
 
 
         applyFiltersAndSort();
@@ -309,15 +604,10 @@ async function loadRanking() {
         );
 
 
-        currentData = [];
-
-
         rankingBody.innerHTML = `
             <tr>
                 <td colspan="6">
                     랭킹 데이터를 불러오지 못했습니다.
-                    <br>
-                    ${error.message}
                 </td>
             </tr>
         `;
@@ -345,13 +635,16 @@ async function loadAllRanking() {
     try {
 
         const response =
-            await fetch("/api/all-ranking");
+            await fetch(
+                "/api/all-ranking"
+            );
 
 
         if (!response.ok) {
 
             throw new Error(
-                `서버 오류 ${response.status}`
+                "서버 오류 " +
+                response.status
             );
 
         }
@@ -361,24 +654,14 @@ async function loadAllRanking() {
             await response.json();
 
 
-        if (
-            !result ||
-            !Array.isArray(result.data)
-        ) {
-
-            throw new Error(
-                "전체 랭킹 데이터 형식 오류"
-            );
-
-        }
-
-
         currentData =
-            result.data;
+            result.data || [];
 
 
         rankingStatus.textContent =
-            `현재 전체 서버 랭킹 - ${currentData.length.toLocaleString()}명`;
+            "현재 전체 서버 랭킹 - " +
+            currentData.length +
+            "명";
 
 
         applyFiltersAndSort();
@@ -395,15 +678,10 @@ async function loadAllRanking() {
         );
 
 
-        currentData = [];
-
-
         rankingBody.innerHTML = `
             <tr>
                 <td colspan="6">
-                    랭킹 데이터를 불러오지 못했습니다.
-                    <br>
-                    ${error.message}
+                    전체 랭킹 데이터를 불러오지 못했습니다.
                 </td>
             </tr>
         `;
@@ -428,7 +706,10 @@ async function getHistoryData(date) {
 
     const response =
         await fetch(
-            `/api/history?date=${encodeURIComponent(date)}`
+            "/api/history?date=" +
+            encodeURIComponent(
+                date
+            )
         );
 
 
@@ -472,17 +753,21 @@ async function loadHistoryRanking(date) {
     try {
 
         const result =
-            await getHistoryData(date);
+            await getHistoryData(
+                date
+            );
 
 
         currentData =
-            Array.isArray(result.data)
-                ? result.data
-                : [];
+            result.data || [];
 
 
         rankingStatus.textContent =
-            `과거 랭킹 - ${date} / ${currentData.length.toLocaleString()}명`;
+            "과거 랭킹 - " +
+            date +
+            " / " +
+            currentData.length +
+            "명";
 
 
         applyFiltersAndSort();
@@ -513,108 +798,109 @@ async function loadHistoryRanking(date) {
 
 
 // ============================================================
-// 필터 / 정렬
+// 검색 / 정렬
 // ============================================================
 
 function applyFiltersAndSort() {
 
-    if (!rankingBody) return;
+    if (!rankingBody) {
+        return;
+    }
 
 
     const keyword =
-        searchInput
-            ? searchInput.value.trim().toLowerCase()
-            : "";
+        searchInput.value.trim();
 
 
     const selectedServer =
-        serverFilter
-            ? serverFilter.value
-            : "all";
+        serverFilter.value;
 
 
     let filteredData =
-        [...currentData];
-
-
-    if (keyword) {
-
-        filteredData =
-            filteredData.filter(player => {
+        currentData.filter(
+            function (player) {
 
                 const nickname =
                     String(
                         player.name || ""
-                    ).toLowerCase();
+                    );
 
-                return nickname.includes(
-                    keyword
+
+                const nicknameMatch =
+                    nickname.includes(
+                        keyword
+                    );
+
+
+                const serverMatch =
+                    selectedServer === "all" ||
+                    player.server ===
+                    getServerName(
+                        selectedServer
+                    );
+
+
+                return (
+                    nicknameMatch &&
+                    serverMatch
                 );
 
-            });
+            }
+        );
+
+
+    if (
+        sortFilter.value === "power"
+    ) {
+
+        filteredData.sort(
+            function (a, b) {
+
+                return (
+                    (Number(b.power) || 0) -
+                    (Number(a.power) || 0)
+                );
+
+            }
+        );
 
     }
 
 
     if (
-        selectedServer !== "all"
+        sortFilter.value === "level"
     ) {
 
-        const serverName =
-            getServerName(
-                selectedServer
-            );
+        filteredData.sort(
+            function (a, b) {
+
+                return (
+                    (Number(b.level) || 0) -
+                    (Number(a.level) || 0)
+                );
+
+            }
+        );
+
+    }
 
 
-        filteredData =
-            filteredData.filter(
-                player =>
+    if (
+        sortFilter.value === "nickname"
+    ) {
+
+        filteredData.sort(
+            function (a, b) {
+
+                return String(
+                    a.name || ""
+                ).localeCompare(
                     String(
-                        player.server || ""
-                    ) ===
-                    String(serverName)
-            );
-
-    }
-
-
-    const sort =
-        sortFilter
-            ? sortFilter.value
-            : "power";
-
-
-    if (sort === "power") {
-
-        filteredData.sort(
-            (a, b) =>
-                (Number(b.power) || 0) -
-                (Number(a.power) || 0)
-        );
-
-    }
-
-
-    if (sort === "level") {
-
-        filteredData.sort(
-            (a, b) =>
-                (Number(b.level) || 0) -
-                (Number(a.level) || 0)
-        );
-
-    }
-
-
-    if (sort === "nickname") {
-
-        filteredData.sort(
-            (a, b) =>
-                String(a.name || "")
-                    .localeCompare(
-                        String(b.name || ""),
-                        "ko"
+                        b.name || ""
                     )
+                );
+
+            }
         );
 
     }
@@ -633,13 +919,10 @@ function applyFiltersAndSort() {
 
 function displayRanking(data) {
 
-    if (!rankingBody) return;
-
-
     rankingBody.innerHTML = "";
 
 
-    if (!Array.isArray(data) || data.length === 0) {
+    if (data.length === 0) {
 
         rankingBody.innerHTML = `
             <tr>
@@ -655,10 +938,12 @@ function displayRanking(data) {
 
 
     data.forEach(
-        (player, index) => {
+        function (player, index) {
 
             const row =
-                document.createElement("tr");
+                document.createElement(
+                    "tr"
+                );
 
 
             const nickname =
@@ -673,7 +958,9 @@ function displayRanking(data) {
 
             row.innerHTML = `
 
-                <td>${rank}</td>
+                <td>
+                    ${rank}
+                </td>
 
                 <td
                     class="nickname-history"
@@ -693,8 +980,8 @@ function displayRanking(data) {
                 <td>
                     ${
                         player.power != null
-                            ? formatNumber(player.power)
-                            : "-"
+                        ? formatNumber(player.power)
+                        : "-"
                     }
                 </td>
 
@@ -711,20 +998,16 @@ function displayRanking(data) {
                 );
 
 
-            if (nicknameCell) {
+            nicknameCell.addEventListener(
+                "click",
+                function () {
 
-                nicknameCell.addEventListener(
-                    "click",
-                    () => {
+                    openPlayerHistory(
+                        player
+                    );
 
-                        openPlayerHistory(
-                            player
-                        );
-
-                    }
-                );
-
-            }
+                }
+            );
 
 
             rankingBody.appendChild(
@@ -738,72 +1021,7 @@ function displayRanking(data) {
 
 
 // ============================================================
-// 플레이어 현재 데이터 찾기
-// ============================================================
-
-async function findPlayerInCurrentRanking(player) {
-
-    const found =
-        currentData.find(
-            item =>
-                String(item.name || "") ===
-                    String(player.name || "") &&
-                String(item.server || "") ===
-                    String(player.server || "")
-        );
-
-
-    if (found) {
-        return found;
-    }
-
-
-    try {
-
-        const response =
-            await fetch("/api/all-ranking");
-
-
-        if (!response.ok) {
-            return null;
-        }
-
-
-        const result =
-            await response.json();
-
-
-        const data =
-            Array.isArray(result.data)
-                ? result.data
-                : [];
-
-
-        return data.find(
-            item =>
-                String(item.name || "") ===
-                    String(player.name || "") &&
-                String(item.server || "") ===
-                    String(player.server || "")
-        ) || null;
-
-
-    } catch (error) {
-
-        console.error(
-            "현재 플레이어 검색 실패:",
-            error
-        );
-
-        return null;
-
-    }
-
-}
-
-
-// ============================================================
-// 날짜 목록
+// 플레이어 기록
 // ============================================================
 
 async function loadHistoryDateArray() {
@@ -827,16 +1045,100 @@ async function loadHistoryDateArray() {
         await response.json();
 
 
-    return Array.isArray(result.dates)
-        ? result.dates
-        : [];
+    return result.dates || [];
 
 }
 
 
-// ============================================================
-// 플레이어 기록
-// ============================================================
+async function findPlayerInCurrentRanking(player) {
+
+    try {
+
+        const found =
+            currentData.find(
+                function (item) {
+
+                    return (
+                        String(
+                            item.name || ""
+                        ) ===
+                        String(
+                            player.name || ""
+                        ) &&
+
+                        String(
+                            item.server || ""
+                        ) ===
+                        String(
+                            player.server || ""
+                        )
+                    );
+
+                }
+            );
+
+
+        if (found) {
+            return found;
+        }
+
+
+        const response =
+            await fetch(
+                "/api/all-ranking"
+            );
+
+
+        if (!response.ok) {
+            return null;
+        }
+
+
+        const result =
+            await response.json();
+
+
+        const data =
+            result.data || [];
+
+
+        return data.find(
+            function (item) {
+
+                return (
+                    String(
+                        item.name || ""
+                    ) ===
+                    String(
+                        player.name || ""
+                    ) &&
+
+                    String(
+                        item.server || ""
+                    ) ===
+                    String(
+                        player.server || ""
+                    )
+                );
+
+            }
+        ) || null;
+
+
+    } catch (error) {
+
+        console.error(
+            "현재 플레이어 검색 실패:",
+            error
+        );
+
+
+        return null;
+
+    }
+
+}
+
 
 async function getPlayerHistory(player) {
 
@@ -847,7 +1149,9 @@ async function getPlayerHistory(player) {
     const records = [];
 
 
-    for (const date of dates) {
+    for (
+        const date of dates
+    ) {
 
         try {
 
@@ -858,18 +1162,32 @@ async function getPlayerHistory(player) {
 
 
             const data =
-                Array.isArray(history.data)
-                    ? history.data
-                    : [];
+                history.data || [];
 
 
             const match =
                 data.find(
-                    item =>
-                        String(item.name || "") ===
-                            String(player.name || "") &&
-                        String(item.server || "") ===
-                            String(player.server || "")
+                    function (item) {
+
+                        return (
+
+                            String(
+                                item.name || ""
+                            ) ===
+                            String(
+                                player.name || ""
+                            ) &&
+
+                            String(
+                                item.server || ""
+                            ) ===
+                            String(
+                                player.server || ""
+                            )
+
+                        );
+
+                    }
                 );
 
 
@@ -877,18 +1195,25 @@ async function getPlayerHistory(player) {
 
                 records.push({
 
-                    date: date,
+                    date:
+                        date,
 
-                    name: match.name,
+                    name:
+                        match.name,
 
-                    server: match.server,
+                    server:
+                        match.server,
 
-                    main_job: match.main_job,
+                    main_job:
+                        match.main_job,
 
-                    level: match.level,
+                    level:
+                        match.level,
 
                     power:
-                        Number(match.power) || 0,
+                        Number(
+                            match.power
+                        ) || 0,
 
                     rank:
                         Number(
@@ -900,10 +1225,12 @@ async function getPlayerHistory(player) {
 
             }
 
+
         } catch (error) {
 
             console.error(
-                `${date} 기록 확인 실패:`,
+                date +
+                " 기록 확인 실패:",
                 error
             );
 
@@ -916,16 +1243,19 @@ async function getPlayerHistory(player) {
         player;
 
 
-    const found =
-        await findPlayerInCurrentRanking(
-            player
-        );
+    if (
+        currentHistoryDate !==
+        "current"
+    ) {
 
+        const found =
+            await findPlayerInCurrentRanking(
+                player
+            );
 
-    if (found) {
 
         currentPlayer =
-            found;
+            found || null;
 
     }
 
@@ -934,18 +1264,25 @@ async function getPlayerHistory(player) {
 
         records.unshift({
 
-            date: "현재",
+            date:
+                "현재",
 
-            name: currentPlayer.name,
+            name:
+                currentPlayer.name,
 
-            server: currentPlayer.server,
+            server:
+                currentPlayer.server,
 
-            main_job: currentPlayer.main_job,
+            main_job:
+                currentPlayer.main_job,
 
-            level: currentPlayer.level,
+            level:
+                currentPlayer.level,
 
             power:
-                Number(currentPlayer.power) || 0,
+                Number(
+                    currentPlayer.power
+                ) || 0,
 
             rank:
                 Number(
@@ -959,15 +1296,21 @@ async function getPlayerHistory(player) {
 
 
     records.sort(
-        (a, b) => {
+        function (a, b) {
 
-            if (a.date === "현재") {
+            if (
+                a.date === "현재"
+            ) {
                 return -1;
             }
 
-            if (b.date === "현재") {
+
+            if (
+                b.date === "현재"
+            ) {
                 return 1;
             }
+
 
             return b.date.localeCompare(
                 a.date
@@ -1042,13 +1385,15 @@ async function openPlayerHistory(player) {
 
         const powerChange =
             previous
-                ? current.power - previous.power
+                ? current.power -
+                  previous.power
                 : 0;
 
 
         const rankChange =
             previous
-                ? previous.rank - current.rank
+                ? previous.rank -
+                  current.rank
                 : 0;
 
 
@@ -1072,6 +1417,7 @@ async function openPlayerHistory(player) {
             <div class="history-summary">
 
                 <div class="history-summary-box">
+
                     <div class="history-summary-title">
                         현재 전투력
                     </div>
@@ -1079,10 +1425,12 @@ async function openPlayerHistory(player) {
                     <div class="history-summary-value">
                         ${formatNumber(current.power)}
                     </div>
+
                 </div>
 
 
                 <div class="history-summary-box">
+
                     <div class="history-summary-title">
                         전투력 변화
                     </div>
@@ -1090,14 +1438,16 @@ async function openPlayerHistory(player) {
                     <div class="history-summary-value">
                         ${
                             previous
-                                ? formatChange(powerChange)
-                                : "-"
+                            ? formatChange(powerChange)
+                            : "-"
                         }
                     </div>
+
                 </div>
 
 
                 <div class="history-summary-box">
+
                     <div class="history-summary-title">
                         순위 변화
                     </div>
@@ -1105,10 +1455,11 @@ async function openPlayerHistory(player) {
                     <div class="history-summary-value">
                         ${
                             previous
-                                ? formatChange(rankChange)
-                                : "-"
+                            ? formatChange(rankChange)
+                            : "-"
                         }
                     </div>
+
                 </div>
 
             </div>
@@ -1121,6 +1472,7 @@ async function openPlayerHistory(player) {
                     <thead>
 
                         <tr>
+
                             <th>날짜</th>
                             <th>서버</th>
                             <th>직업</th>
@@ -1129,29 +1481,32 @@ async function openPlayerHistory(player) {
                             <th>순위</th>
                             <th>전투력 변화</th>
                             <th>순위 변화</th>
+
                         </tr>
 
                     </thead>
 
                     <tbody>
+
         `;
 
 
         records.forEach(
-            (record, index) => {
+            function (record, index) {
 
                 const previousRecord =
-                    records[index + 1] || null;
+                    records[index + 1] ||
+                    null;
 
 
-                const recordPowerChange =
+                const powerChange =
                     previousRecord
                         ? record.power -
                           previousRecord.power
                         : 0;
 
 
-                const recordRankChange =
+                const rankChange =
                     previousRecord
                         ? previousRecord.rank -
                           record.rank
@@ -1162,7 +1517,9 @@ async function openPlayerHistory(player) {
 
                     <tr>
 
-                        <td>${record.date}</td>
+                        <td>
+                            ${record.date}
+                        </td>
 
                         <td>
                             ${record.server || "-"}
@@ -1183,24 +1540,24 @@ async function openPlayerHistory(player) {
                         <td>
                             ${
                                 record.rank
-                                    ? formatNumber(record.rank) + "위"
-                                    : "-"
+                                ? formatNumber(record.rank) + "위"
+                                : "-"
                             }
                         </td>
 
                         <td>
                             ${
                                 previousRecord
-                                    ? formatChange(recordPowerChange)
-                                    : "-"
+                                ? formatChange(powerChange)
+                                : "-"
                             }
                         </td>
 
                         <td>
                             ${
                                 previousRecord
-                                    ? formatChange(recordRankChange)
-                                    : "-"
+                                ? formatChange(rankChange)
+                                : "-"
                             }
                         </td>
 
@@ -1247,7 +1604,7 @@ async function openPlayerHistory(player) {
 
 
 // ============================================================
-// 기록 모달 생성
+// 기록 모달
 // ============================================================
 
 function createHistoryModal() {
@@ -1309,7 +1666,7 @@ function createHistoryModal() {
 
     closeButton.addEventListener(
         "click",
-        () => {
+        function () {
 
             modal.style.display =
                 "none";
@@ -1326,7 +1683,7 @@ function createHistoryModal() {
 
     overlay.addEventListener(
         "click",
-        event => {
+        function (event) {
 
             if (
                 event.target === overlay
@@ -1354,23 +1711,26 @@ if (serverFilter) {
 
     serverFilter.addEventListener(
         "change",
-        async () => {
+        async function () {
 
-            currentHistoryDate =
-                "current";
+            const selectedServer =
+                serverFilter.value;
 
 
-            if (historyFilter) {
+            if (
+                currentHistoryDate !==
+                "current"
+            ) {
 
-                historyFilter.value =
-                    "current";
+                applyFiltersAndSort();
+
+                return;
 
             }
 
 
             if (
-                serverFilter.value ===
-                "all"
+                selectedServer === "all"
             ) {
 
                 await loadAllRanking();
@@ -1388,21 +1748,25 @@ if (serverFilter) {
 
 
 // ============================================================
-// 과거 날짜 변경
+// 날짜 변경
 // ============================================================
 
 if (historyFilter) {
 
     historyFilter.addEventListener(
         "change",
-        async () => {
+        async function () {
 
-            currentHistoryDate =
+            const selectedDate =
                 historyFilter.value;
 
 
+            currentHistoryDate =
+                selectedDate;
+
+
             if (
-                currentHistoryDate ===
+                selectedDate ===
                 "current"
             ) {
 
@@ -1425,7 +1789,7 @@ if (historyFilter) {
 
 
             await loadHistoryRanking(
-                currentHistoryDate
+                selectedDate
             );
 
         }
@@ -1442,7 +1806,7 @@ if (searchButton) {
 
     searchButton.addEventListener(
         "click",
-        () => {
+        function () {
 
             applyFiltersAndSort();
 
@@ -1456,14 +1820,11 @@ if (searchInput) {
 
     searchInput.addEventListener(
         "keydown",
-        event => {
+        function (event) {
 
             if (
-                event.key ===
-                "Enter"
+                event.key === "Enter"
             ) {
-
-                event.preventDefault();
 
                 applyFiltersAndSort();
 
@@ -1483,7 +1844,7 @@ if (sortFilter) {
 
     sortFilter.addEventListener(
         "change",
-        () => {
+        function () {
 
             applyFiltersAndSort();
 
@@ -1494,32 +1855,24 @@ if (sortFilter) {
 
 
 // ============================================================
-// 랭킹 메뉴
+// 랭킹 / 시세 전환
 // ============================================================
 
 if (rankingNav) {
 
     rankingNav.addEventListener(
         "click",
-        event => {
+        function (event) {
 
             event.preventDefault();
 
 
-            if (rankingSection) {
-
-                rankingSection.style.display =
-                    "block";
-
-            }
+            rankingSection.style.display =
+                "block";
 
 
-            if (marketSection) {
-
-                marketSection.style.display =
-                    "none";
-
-            }
+            marketSection.style.display =
+                "none";
 
         }
     );
@@ -1527,36 +1880,24 @@ if (rankingNav) {
 }
 
 
-// ============================================================
-// 시세 메뉴
-// ============================================================
-
 if (marketNav) {
 
     marketNav.addEventListener(
         "click",
-        async event => {
+        function (event) {
 
             event.preventDefault();
 
 
-            if (rankingSection) {
-
-                rankingSection.style.display =
-                    "none";
-
-            }
+            rankingSection.style.display =
+                "none";
 
 
-            if (marketSection) {
-
-                marketSection.style.display =
-                    "block";
-
-            }
+            marketSection.style.display =
+                "block";
 
 
-            await loadMarket();
+            loadMarket();
 
         }
     );
@@ -1570,7 +1911,9 @@ if (marketNav) {
 
 async function loadMarket() {
 
-    if (!marketBody) return;
+    if (!marketBody) {
+        return;
+    }
 
 
     const itemName =
@@ -1579,37 +1922,75 @@ async function loadMarket() {
             : "";
 
 
+    const server =
+        currentAuctionServer;
+
+
+    const serverInfo =
+        auctionServers[server];
+
+
     marketBody.innerHTML = `
+
         <tr>
+
             <td colspan="8">
-                아이템 시세를 불러오는 중입니다...
+                ${
+                    serverInfo
+                    ? serverInfo.name
+                    : ""
+                } 거래소를 불러오는 중입니다...
             </td>
+
         </tr>
+
     `;
 
 
     if (marketStatus) {
 
         marketStatus.textContent =
-            "거래소 데이터를 불러오는 중입니다...";
+            (
+                serverInfo
+                ? serverInfo.name
+                : ""
+            ) +
+            " 거래소 데이터를 불러오는 중입니다...";
 
     }
 
 
     try {
 
-        const url =
-            `/api/auction?server=newworld&itemname=${encodeURIComponent(itemName)}`;
+        const apiUrl =
+            "/api/auction" +
+            "?server=" +
+            encodeURIComponent(
+                server
+            ) +
+            "&itemname=" +
+            encodeURIComponent(
+                itemName
+            );
+
+
+        console.log(
+            "[MARKET REQUEST]",
+            apiUrl
+        );
 
 
         const response =
-            await fetch(url);
+            await fetch(
+                apiUrl
+            );
 
 
         if (!response.ok) {
 
             throw new Error(
-                `거래소 서버 오류 ${response.status}`
+                "거래소 서버 오류 " +
+                response.status
             );
 
         }
@@ -1626,13 +2007,17 @@ async function loadMarket() {
             Array.isArray(result)
         ) {
 
-            data = result;
+            data =
+                result;
 
         } else if (
-            Array.isArray(result.data)
+            Array.isArray(
+                result.data
+            )
         ) {
 
-            data = result.data;
+            data =
+                result.data;
 
         } else if (
             result.resultData &&
@@ -1645,15 +2030,14 @@ async function loadMarket() {
                 result.resultData.resData;
 
         } else if (
-            result.raw &&
-            result.raw.resultData &&
+            result.resultData &&
             Array.isArray(
-                result.raw.resultData.resData
+                result.resultData.data
             )
         ) {
 
             data =
-                result.raw.resultData.resData;
+                result.resultData.data;
 
         }
 
@@ -1675,17 +2059,16 @@ async function loadMarket() {
         );
 
 
-        currentMarketData = [];
-
-
         marketBody.innerHTML = `
+
             <tr>
+
                 <td colspan="8">
-                    아이템 시세를 불러오지 못했습니다.
-                    <br>
-                    ${error.message}
+                    거래소 데이터를 불러오지 못했습니다.
                 </td>
+
             </tr>
+
         `;
 
 
@@ -1702,12 +2085,14 @@ async function loadMarket() {
 
 
 // ============================================================
-// 거래소 출력
+// 거래소 데이터 출력
 // ============================================================
 
 function displayMarket(data) {
 
-    if (!marketBody) return;
+    if (!marketBody) {
+        return;
+    }
 
 
     marketBody.innerHTML = "";
@@ -1719,20 +2104,36 @@ function displayMarket(data) {
     ) {
 
         marketBody.innerHTML = `
+
             <tr>
+
                 <td colspan="8">
                     등록된 아이템이 없습니다.
                 </td>
+
             </tr>
+
         `;
 
 
         if (marketStatus) {
 
+            const serverInfo =
+                auctionServers[
+                    currentAuctionServer
+                ];
+
+
             marketStatus.textContent =
-                "검색 결과 0개";
+                (
+                    serverInfo
+                    ? serverInfo.name
+                    : ""
+                ) +
+                " 거래소 검색 결과 0개";
 
         }
+
 
         return;
 
@@ -1745,227 +2146,298 @@ function displayMarket(data) {
 
     const keyword =
         itemSearchInput
-            ? itemSearchInput.value.trim().toLowerCase()
+            ? itemSearchInput.value.trim()
             : "";
 
 
     if (keyword) {
 
         filtered =
-            filtered.filter(item => {
+            filtered.filter(
+                function (item) {
 
-                const name =
-                    String(
-                        item.item_name ||
-                        item.itemName ||
-                        item.name ||
-                        ""
-                    ).toLowerCase();
+                    const name =
+                        String(
+                            item.item_name ||
+                            item.itemName ||
+                            item.name ||
+                            ""
+                        );
 
 
-                return name.includes(
-                    keyword
-                );
+                    return name.includes(
+                        keyword
+                    );
 
-            });
+                }
+            );
 
     }
 
 
     if (
         itemTierFilter &&
-        itemTierFilter.value !==
-            "all"
+        itemTierFilter.value !== "all"
     ) {
 
-        const selectedTier =
+        const tier =
             itemTierFilter.value;
 
 
         filtered =
-            filtered.filter(item => {
+            filtered.filter(
+                function (item) {
 
-                const tier =
-                    String(
-                        item.tier_name ||
-                        item.tierName ||
-                        item.tier ||
-                        item.grade ||
-                        ""
+                    const itemTier =
+                        String(
+                            item.tier_name ||
+                            item.tierName ||
+                            item.tier ||
+                            item.grade ||
+                            ""
+                        );
+
+
+                    return (
+                        itemTier === tier
                     );
 
-
-                return (
-                    tier ===
-                    selectedTier
-                );
-
-            });
-
-    }
-
-
-    const sort =
-        itemSortFilter
-            ? itemSortFilter.value
-            : "lowest";
-
-
-    if (sort === "lowest") {
-
-        filtered.sort(
-            (a, b) =>
-                getItemPrice(a) -
-                getItemPrice(b)
-        );
-
-    }
-
-
-    if (sort === "highest") {
-
-        filtered.sort(
-            (a, b) =>
-                getItemHighestPrice(b) -
-                getItemHighestPrice(a)
-        );
-
-    }
-
-
-    if (sort === "average") {
-
-        filtered.sort(
-            (a, b) =>
-                getItemAveragePrice(b) -
-                getItemAveragePrice(a)
-        );
-
-    }
-
-
-    if (sort === "trade") {
-
-        filtered.sort(
-            (a, b) =>
-                getItemTradeCount(b) -
-                getItemTradeCount(a)
-        );
-
-    }
-
-
-    filtered.forEach(item => {
-
-        const itemName =
-            item.item_name ||
-            item.itemName ||
-            item.name ||
-            "-";
-
-
-        const tier =
-            item.tier_name ||
-            item.tierName ||
-            item.tier ||
-            item.grade ||
-            "-";
-
-
-        const quality =
-            item.quality ||
-            item.quality_name ||
-            item.qualityName ||
-            "-";
-
-
-        const lowest =
-            getItemPrice(item);
-
-
-        const average =
-            getItemAveragePrice(item);
-
-
-        const highest =
-            getItemHighestPrice(item);
-
-
-        const trade =
-            getItemTradeCount(item);
-
-
-        const current =
-            item.current_count ??
-            item.currentCount ??
-            item.registered_count ??
-            item.registeredCount ??
-            item.count ??
-            "-";
-
-
-        const row =
-            document.createElement(
-                "tr"
+                }
             );
 
+    }
 
-        row.innerHTML = `
 
-            <td>${itemName}</td>
+    if (itemSortFilter) {
 
-            <td>${tier}</td>
+        const sort =
+            itemSortFilter.value;
 
-            <td>${quality}</td>
 
-            <td>
-                ${
-                    lowest
-                        ? formatNumber(lowest)
-                        : "-"
+        if (
+            sort === "lowest"
+        ) {
+
+            filtered.sort(
+                function (a, b) {
+
+                    return (
+                        getItemPrice(a) -
+                        getItemPrice(b)
+                    );
+
                 }
-            </td>
+            );
 
-            <td>
-                ${
-                    average
-                        ? formatNumber(average)
-                        : "-"
+        }
+
+
+        if (
+            sort === "highest"
+        ) {
+
+            filtered.sort(
+                function (a, b) {
+
+                    return (
+                        getItemHighestPrice(b) -
+                        getItemHighestPrice(a)
+                    );
+
                 }
-            </td>
+            );
 
-            <td>
-                ${
-                    highest
-                        ? formatNumber(highest)
-                        : "-"
+        }
+
+
+        if (
+            sort === "average"
+        ) {
+
+            filtered.sort(
+                function (a, b) {
+
+                    return (
+                        getItemAveragePrice(b) -
+                        getItemAveragePrice(a)
+                    );
+
                 }
-            </td>
+            );
 
-            <td>
-                ${
-                    trade
-                        ? formatNumber(trade)
-                        : "-"
+        }
+
+
+        if (
+            sort === "trade"
+        ) {
+
+            filtered.sort(
+                function (a, b) {
+
+                    return (
+                        getItemTradeCount(b) -
+                        getItemTradeCount(a)
+                    );
+
                 }
-            </td>
+            );
 
-            <td>${current}</td>
+        }
 
-        `;
+    }
 
 
-        marketBody.appendChild(
-            row
-        );
+    filtered.forEach(
+        function (item) {
 
-    });
+            const itemName =
+                item.item_name ||
+                item.itemName ||
+                item.name ||
+                "-";
+
+
+            const tier =
+                item.tier_name ||
+                item.tierName ||
+                item.tier ||
+                item.grade ||
+                "-";
+
+
+            const quality =
+                item.quality ||
+                item.quality_name ||
+                item.qualityName ||
+                "-";
+
+
+            const lowest =
+                getItemPrice(
+                    item
+                );
+
+
+            const average =
+                getItemAveragePrice(
+                    item
+                );
+
+
+            const highest =
+                getItemHighestPrice(
+                    item
+                );
+
+
+            const trade =
+                getItemTradeCount(
+                    item
+                );
+
+
+            const current =
+                item.current_count ??
+                item.currentCount ??
+                item.registered_count ??
+                item.registeredCount ??
+                item.count ??
+                "-";
+
+
+            const row =
+                document.createElement(
+                    "tr"
+                );
+
+
+            row.innerHTML = `
+
+                <td>
+                    ${itemName}
+                </td>
+
+                <td>
+                    ${tier}
+                </td>
+
+                <td>
+                    ${quality}
+                </td>
+
+                <td>
+                    ${
+                        lowest === 0
+                        ? "-"
+                        : formatNumber(
+                            lowest
+                        )
+                    }
+                </td>
+
+                <td>
+                    ${
+                        average === 0
+                        ? "-"
+                        : formatNumber(
+                            average
+                        )
+                    }
+                </td>
+
+                <td>
+                    ${
+                        highest === 0
+                        ? "-"
+                        : formatNumber(
+                            highest
+                        )
+                    }
+                </td>
+
+                <td>
+                    ${
+                        trade === 0
+                        ? "-"
+                        : formatNumber(
+                            trade
+                        )
+                    }
+                </td>
+
+                <td>
+                    ${current}
+                </td>
+
+            `;
+
+
+            marketBody.appendChild(
+                row
+            );
+
+        }
+    );
 
 
     if (marketStatus) {
 
+        const serverInfo =
+            auctionServers[
+                currentAuctionServer
+            ];
+
+
         marketStatus.textContent =
-            `검색 결과 ${filtered.length.toLocaleString()}개`;
+            (
+                serverInfo
+                ? serverInfo.name
+                : ""
+            ) +
+            " 거래소 검색 결과 " +
+            filtered.length +
+            "개";
 
     }
 
@@ -1973,7 +2445,7 @@ function displayMarket(data) {
 
 
 // ============================================================
-// 가격 추출
+// 거래소 가격
 // ============================================================
 
 function getItemPrice(item) {
@@ -1983,9 +2455,18 @@ function getItemPrice(item) {
         item.lowestPrice ??
         item.min_price ??
         item.minPrice ??
-        item.price ??
-        item.sell_price ??
-        item.sellPrice;
+        item.price;
+
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return 0;
+
+    }
 
 
     return Number(value) || 0;
@@ -1999,8 +2480,18 @@ function getItemAveragePrice(item) {
         item.average_price ??
         item.averagePrice ??
         item.avg_price ??
-        item.avgPrice ??
-        item.average;
+        item.avgPrice;
+
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return 0;
+
+    }
 
 
     return Number(value) || 0;
@@ -2014,8 +2505,18 @@ function getItemHighestPrice(item) {
         item.highest_price ??
         item.highestPrice ??
         item.max_price ??
-        item.maxPrice ??
-        item.highest;
+        item.maxPrice;
+
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return 0;
+
+    }
 
 
     return Number(value) || 0;
@@ -2030,8 +2531,18 @@ function getItemTradeCount(item) {
         item.tradeCount ??
         item.transaction_count ??
         item.transactionCount ??
-        item.volume ??
-        item.quantity;
+        item.volume;
+
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return 0;
+
+    }
 
 
     return Number(value) || 0;
@@ -2047,7 +2558,7 @@ if (itemSearchButton) {
 
     itemSearchButton.addEventListener(
         "click",
-        () => {
+        function () {
 
             loadMarket();
 
@@ -2061,14 +2572,11 @@ if (itemSearchInput) {
 
     itemSearchInput.addEventListener(
         "keydown",
-        event => {
+        function (event) {
 
             if (
-                event.key ===
-                "Enter"
+                event.key === "Enter"
             ) {
-
-                event.preventDefault();
 
                 loadMarket();
 
@@ -2084,7 +2592,7 @@ if (itemTierFilter) {
 
     itemTierFilter.addEventListener(
         "change",
-        () => {
+        function () {
 
             displayMarket(
                 currentMarketData
@@ -2100,7 +2608,7 @@ if (itemSortFilter) {
 
     itemSortFilter.addEventListener(
         "change",
-        () => {
+        function () {
 
             displayMarket(
                 currentMarketData
@@ -2118,6 +2626,8 @@ if (itemSortFilter) {
 
 buildServerFilter();
 
+buildAuctionServerFilter();
+
 
 if (serverFilter) {
 
@@ -2131,14 +2641,7 @@ currentHistoryDate =
     "current";
 
 
-if (historyFilter) {
-
-    historyFilter.value =
-        "current";
-
-}
-
-
 loadHistoryDates();
 
 loadAllRanking();
+```
