@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>아스달 지지</title>
 
     <link rel="stylesheet" href="style.css">
@@ -15,18 +16,20 @@
 
         <nav>
             <a href="#">랭킹</a>
+            <a href="#auction">거래소</a>
         </nav>
     </header>
 
 
     <main>
 
+        <!-- =========================
+             랭킹
+        ========================== -->
+
         <section class="ranking">
 
             <h2>랭킹</h2>
-
-
-            <!-- 검색 영역 -->
 
             <div class="search-box">
 
@@ -35,7 +38,6 @@
                     id="searchInput"
                     placeholder="닉네임을 검색하세요"
                 >
-
 
                 <select id="serverFilter">
 
@@ -48,7 +50,6 @@
                     </option>
 
                 </select>
-
 
                 <select id="sortFilter">
 
@@ -66,9 +67,6 @@
 
                 </select>
 
-
-                <!-- 과거 랭킹 -->
-
                 <select id="historyFilter">
 
                     <option value="current">
@@ -77,42 +75,81 @@
 
                 </select>
 
-
                 <button id="searchButton">
                     검색
                 </button>
 
             </div>
 
-
-            <!-- 현재 / 과거 상태 -->
-
             <div id="rankingStatus"></div>
-
-
-            <!-- 랭킹 표 -->
 
             <table>
 
                 <thead>
 
                     <tr>
-
                         <th>순위</th>
                         <th>닉네임</th>
                         <th>직업</th>
                         <th>레벨</th>
                         <th>전투력</th>
                         <th>서버</th>
-
                     </tr>
 
                 </thead>
 
+                <tbody id="rankingBody"></tbody>
 
-                <tbody id="rankingBody">
+            </table>
 
-                </tbody>
+        </section>
+
+
+        <!-- =========================
+             거래소
+        ========================== -->
+
+        <section class="auction" id="auction">
+
+            <h2>거래소</h2>
+
+            <div class="auction-search">
+
+                <input
+                    type="text"
+                    id="auctionSearchInput"
+                    placeholder="아이템 이름을 검색하세요"
+                >
+
+                <button id="auctionSearchButton">
+                    검색
+                </button>
+
+            </div>
+
+
+            <div id="auctionStatus"></div>
+
+
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>아이템</th>
+                        <th>등급</th>
+                        <th>강화</th>
+                        <th>최근 거래가</th>
+                        <th>최저가</th>
+                        <th>최고가</th>
+                        <th>거래량</th>
+                        <th>현재 등록가</th>
+                        <th>등록 수량</th>
+                    </tr>
+
+                </thead>
+
+                <tbody id="auctionBody"></tbody>
 
             </table>
 
