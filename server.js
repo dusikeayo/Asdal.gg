@@ -41,23 +41,35 @@ const worlds = {
 
 // ============================================================
 // 거래소 서버
+//
+// 중요:
+// 프론트에서 아래 key를 보내면 해당 worldId로 API 요청
+//
+// newworld -> 뉴월드
+// krabon   -> 크라본
+// global   -> 글로벌
 // ============================================================
 
 const auctionServers = {
-    "newworld": {
+
+    newworld: {
+        key: "newworld",
         name: "뉴월드",
         worldId: 3000
     },
 
-    "krabon": {
+    krabon: {
+        key: "krabon",
         name: "크라본",
         worldId: 70110
     },
 
-    "global": {
+    global: {
+        key: "global",
         name: "글로벌",
         worldId: 1000
     }
+
 };
 
 
@@ -66,15 +78,25 @@ const auctionServers = {
 // ============================================================
 
 const DATA_DIR =
-    path.join(__dirname, "data");
+    path.join(
+        __dirname,
+        "data"
+    );
 
-if (!fs.existsSync(DATA_DIR)) {
+
+if (
+    !fs.existsSync(
+        DATA_DIR
+    )
+) {
+
     fs.mkdirSync(
         DATA_DIR,
         {
             recursive: true
         }
     );
+
 }
 
 
@@ -85,10 +107,14 @@ if (!fs.existsSync(DATA_DIR)) {
 function sleep(ms) {
 
     return new Promise(
-        resolve => setTimeout(
-            resolve,
-            ms
-        )
+        resolve => {
+
+            setTimeout(
+                resolve,
+                ms
+            );
+
+        }
     );
 
 }
@@ -118,7 +144,13 @@ function getTodayDate() {
             "0"
         );
 
-    return `${year}-${month}-${day}`;
+    return (
+        year +
+        "-" +
+        month +
+        "-" +
+        day
+    );
 
 }
 
@@ -127,7 +159,7 @@ function getHistoryFile(date) {
 
     return path.join(
         DATA_DIR,
-        `${date}.json`
+        date + ".json"
     );
 
 }
@@ -137,10 +169,15 @@ function getHistoryFile(date) {
 // 랭킹 API
 // ============================================================
 
-function requestRanking(worldId) {
+function requestRanking(
+    worldId
+) {
 
     return new Promise(
-        (resolve, reject) => {
+        (
+            resolve,
+            reject
+        ) => {
 
             const apiUrl =
                 "https://arthdal.netmarble.com/front-api/ranking" +
@@ -150,7 +187,9 @@ function requestRanking(worldId) {
                 ROW_PER_PAGE +
                 "&type=power" +
                 "&worldId=" +
-                worldId +
+                encodeURIComponent(
+                    worldId
+                ) +
                 "&name=";
 
 
@@ -164,11 +203,13 @@ function requestRanking(worldId) {
                 apiUrl,
                 {
                     headers: {
+
                         "User-Agent":
                             "Mozilla/5.0",
 
                         "Accept":
                             "application/json"
+
                     }
                 },
                 response => {
@@ -214,9 +255,11 @@ function requestRanking(worldId) {
                                         body
                                     );
 
+
                                 resolve(
                                     json
                                 );
+
 
                             } catch (
                                 error
@@ -388,7 +431,10 @@ async function getWorldRanking(
 
 
         uniqueResults.sort(
-            (a, b) => {
+            (
+                a,
+                b
+            ) => {
 
                 return (
                     (
@@ -408,7 +454,10 @@ async function getWorldRanking(
 
 
         uniqueResults.forEach(
-            (player, index) => {
+            (
+                player,
+                index
+            ) => {
 
                 player.rank =
                     index + 1;
@@ -484,7 +533,9 @@ async function getAllRanking() {
 
         console.log(
             "[BATCH] " +
-            (i + 1) +
+            (
+                i + 1
+            ) +
             " ~ " +
             Math.min(
                 i + BATCH_SIZE,
@@ -496,7 +547,12 @@ async function getAllRanking() {
         const batchResults =
             await Promise.all(
                 batch.map(
-                    ([serverName, worldId]) => {
+                    (
+                        [
+                            serverName,
+                            worldId
+                        ]
+                    ) => {
 
                         return getWorldRanking(
                             serverName,
@@ -573,7 +629,10 @@ async function getAllRanking() {
 
 
     uniqueResults.sort(
-        (a, b) => {
+        (
+            a,
+            b
+        ) => {
 
             return (
                 (
@@ -593,7 +652,10 @@ async function getAllRanking() {
 
 
     uniqueResults.forEach(
-        (player, index) => {
+        (
+            player,
+            index
+        ) => {
 
             player.totalRank =
                 index + 1;
@@ -622,17 +684,16 @@ async function getAllRanking() {
 // 거래소 API
 // ============================================================
 
-// ============================================================
-// 거래소 API
-// ============================================================
-
 function requestAuction(
     itemName = "",
     worldId
 ) {
 
     return new Promise(
-        (resolve, reject) => {
+        (
+            resolve,
+            reject
+        ) => {
 
             if (
                 worldId === undefined ||
@@ -650,23 +711,117 @@ function requestAuction(
             }
 
 
-            const apiUrl =
-                "https://arthdal.netmarble.com/front-api/auction" +
-                "?worldId=" +
-                encodeURIComponent(
-                    String(worldId)
-                ) +
-                "&lang=ko" +
-                "&page=1" +
-                "&row=50" +
-                "&reinforce_level_start=0" +
-                "&reinforce_level_end=20" +
-                "&tiers=0,1,2,3,4" +
-                "&categories=0,3,1,2,97,110,124,130,140,6,7,8,9,10,11,5,12,15,13,14,16,117,20,21,19,22,68,69,70,71,72,78,79,80,81,82,83,84,85,86,67,63,64,58,59,60,61,55,56,96,47,48,49,50,51,52,53,54,109,26,27,29,44,45,46,35,36,33,65" +
-                "&itemname=" +
-                encodeURIComponent(
+            const categories =
+                [
+                    0,
+                    3,
+                    1,
+                    2,
+                    97,
+                    110,
+                    124,
+                    130,
+                    140,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    5,
+                    12,
+                    15,
+                    13,
+                    14,
+                    16,
+                    117,
+                    20,
+                    21,
+                    19,
+                    22,
+                    68,
+                    69,
+                    70,
+                    71,
+                    72,
+                    78,
+                    79,
+                    80,
+                    81,
+                    82,
+                    83,
+                    84,
+                    85,
+                    86,
+                    67,
+                    63,
+                    64,
+                    58,
+                    59,
+                    60,
+                    61,
+                    55,
+                    56,
+                    96,
+                    47,
+                    48,
+                    49,
+                    50,
+                    51,
+                    52,
+                    53,
+                    54,
+                    109,
+                    26,
+                    27,
+                    29,
+                    44,
+                    45,
+                    46,
+                    35,
+                    36,
+                    33,
+                    65
+                ].join(",");
+
+
+            const params = new URLSearchParams({
+
+                worldId:
+                    String(
+                        worldId
+                    ),
+
+                lang:
+                    "ko",
+
+                page:
+                    "1",
+
+                row:
+                    "50",
+
+                reinforce_level_start:
+                    "0",
+
+                reinforce_level_end:
+                    "20",
+
+                tiers:
+                    "0,1,2,3,4",
+
+                categories:
+                    categories,
+
+                itemname:
                     itemName
-                );
+
+            });
+
+
+            const apiUrl =
+                "https://arthdal.netmarble.com/front-api/auction?" +
+                params.toString();
 
 
             console.log(
@@ -706,7 +861,10 @@ function requestAuction(
                                 "application/json",
 
                             "Referer":
-                                "https://arthdal.netmarble.com/"
+                                "https://arthdal.netmarble.com/",
+
+                            "Accept-Language":
+                                "ko-KR,ko;q=0.9"
 
                         }
                     },
@@ -769,23 +927,9 @@ function requestAuction(
                                         );
 
 
-                                    /*
-                                     * API 응답에 실제 거래소 서버 정보가
-                                     * 들어오는 경우 그대로 유지하고,
-                                     * 서버 정보가 없더라도 현재 요청한
-                                     * worldId를 별도로 기억할 수 있게 함.
-                                     */
-
-                                    resolve({
-
-                                        ...json,
-
-                                        __requestedWorldId:
-                                            Number(
-                                                worldId
-                                            )
-
-                                    });
+                                    resolve(
+                                        json
+                                    );
 
 
                                 } catch (
@@ -840,6 +984,38 @@ function requestAuction(
 
 
 // ============================================================
+// 거래소 서버 찾기
+// ============================================================
+
+function getAuctionServer(
+    serverKey
+) {
+
+    if (
+        !serverKey
+    ) {
+
+        return null;
+
+    }
+
+
+    const key =
+        String(
+            serverKey
+        ).trim().toLowerCase();
+
+
+    return (
+        auctionServers[
+            key
+        ] || null
+    );
+
+}
+
+
+// ============================================================
 // 일일 랭킹 저장
 // ============================================================
 
@@ -848,7 +1024,10 @@ function saveDailyRanking(
 ) {
 
     return new Promise(
-        (resolve, reject) => {
+        (
+            resolve,
+            reject
+        ) => {
 
             const today =
                 getTodayDate();
@@ -902,7 +1081,9 @@ function saveDailyRanking(
                 "utf8",
                 error => {
 
-                    if (error) {
+                    if (
+                        error
+                    ) {
 
                         reject(
                             error
@@ -970,7 +1151,10 @@ function getHistoryDates() {
                 )
         )
         .sort(
-            (a, b) =>
+            (
+                a,
+                b
+            ) =>
                 b.localeCompare(
                     a
                 )
@@ -1057,7 +1241,13 @@ function sendJson(
                 "application/json; charset=utf-8",
 
             "Access-Control-Allow-Origin":
-                "*"
+                "*",
+
+            "Access-Control-Allow-Methods":
+                "GET, OPTIONS",
+
+            "Access-Control-Allow-Headers":
+                "Content-Type"
         }
     );
 
@@ -1090,6 +1280,36 @@ const server =
                         "http://" +
                         req.headers.host
                     );
+
+
+                // ==================================================
+                // CORS OPTIONS
+                // ==================================================
+
+                if (
+                    req.method ===
+                    "OPTIONS"
+                ) {
+
+                    res.writeHead(
+                        204,
+                        {
+                            "Access-Control-Allow-Origin":
+                                "*",
+
+                            "Access-Control-Allow-Methods":
+                                "GET, OPTIONS",
+
+                            "Access-Control-Allow-Headers":
+                                "Content-Type"
+                        }
+                    );
+
+                    res.end();
+
+                    return;
+
+                }
 
 
                 // ==================================================
@@ -1143,7 +1363,9 @@ const server =
                         );
 
 
-                    if (!worldId) {
+                    if (
+                        !worldId
+                    ) {
 
                         sendJson(
                             res,
@@ -1163,7 +1385,12 @@ const server =
                         Object.entries(
                             worlds
                         ).find(
-                            ([name, id]) => {
+                            (
+                                [
+                                    name,
+                                    id
+                                ]
+                            ) => {
 
                                 return (
                                     String(id) ===
@@ -1174,7 +1401,9 @@ const server =
                         );
 
 
-                    if (!world) {
+                    if (
+                        !world
+                    ) {
 
                         sendJson(
                             res,
@@ -1193,7 +1422,9 @@ const server =
                     const ranking =
                         await getWorldRanking(
                             world[0],
-                            Number(worldId)
+                            Number(
+                                worldId
+                            )
                         );
 
 
@@ -1223,6 +1454,49 @@ const server =
 
 
                 // ==================================================
+                // 거래소 서버 목록
+                // ==================================================
+
+                if (
+                    requestUrl.pathname ===
+                    "/api/auction-servers"
+                ) {
+
+                    sendJson(
+                        res,
+                        200,
+                        {
+                            data:
+                                Object.values(
+                                    auctionServers
+                                ).map(
+                                    server => {
+
+                                        return {
+
+                                            key:
+                                                server.key,
+
+                                            name:
+                                                server.name,
+
+                                            worldId:
+                                                server.worldId
+
+                                        };
+
+                                    }
+                                )
+                        }
+                    );
+
+
+                    return;
+
+                }
+
+
+                // ==================================================
                 // 거래소
                 // ==================================================
 
@@ -1237,16 +1511,25 @@ const server =
                         ) || "";
 
 
-                    const server =
+                    /*
+                     * 프론트에서 보내는 값:
+                     *
+                     * /api/auction?server=newworld
+                     * /api/auction?server=krabon
+                     * /api/auction?server=global
+                     *
+                     */
+
+                    const serverKey =
                         requestUrl.searchParams.get(
                             "server"
                         ) || "newworld";
 
 
                     const auctionServer =
-                        auctionServers[
-                            server
-                        ];
+                        getAuctionServer(
+                            serverKey
+                        );
 
 
                     if (
@@ -1258,7 +1541,29 @@ const server =
                             400,
                             {
                                 error:
-                                    "invalid auction server"
+                                    "invalid auction server",
+
+                                availableServers:
+                                    Object.values(
+                                        auctionServers
+                                    ).map(
+                                        server => {
+
+                                            return {
+
+                                                key:
+                                                    server.key,
+
+                                                name:
+                                                    server.name,
+
+                                                worldId:
+                                                    server.worldId
+
+                                            };
+
+                                        }
+                                    )
                             }
                         );
 
@@ -1268,9 +1573,35 @@ const server =
 
 
                     console.log(
-                        "[AUCTION SEARCH]",
-                        auctionServer.name,
-                        auctionServer.worldId,
+                        "================================"
+                    );
+
+
+                    console.log(
+                        "[AUCTION SEARCH]"
+                    );
+
+
+                    console.log(
+                        "[AUCTION SERVER]",
+                        auctionServer.name
+                    );
+
+
+                    console.log(
+                        "[AUCTION KEY]",
+                        auctionServer.key
+                    );
+
+
+                    console.log(
+                        "[AUCTION WORLD ID]",
+                        auctionServer.worldId
+                    );
+
+
+                    console.log(
+                        "[AUCTION ITEM]",
                         itemName || "전체"
                     );
 
@@ -1282,23 +1613,105 @@ const server =
                         );
 
 
+                    /*
+                     * 아스달 API 응답 구조가
+                     *
+                     * resultData.resData
+                     *
+                     * 또는
+                     *
+                     * resData
+                     *
+                     * 중 하나인 경우 모두 처리
+                     */
+
+                    let auctionData = [];
+
+
+                    if (
+                        auction &&
+                        auction.resultData &&
+                        Array.isArray(
+                            auction.resultData.resData
+                        )
+                    ) {
+
+                        auctionData =
+                            auction.resultData.resData;
+
+                    } else if (
+                        auction &&
+                        Array.isArray(
+                            auction.resData
+                        )
+                    ) {
+
+                        auctionData =
+                            auction.resData;
+
+                    }
+
+
+                    /*
+                     * 각각의 거래소 데이터에
+                     * 현재 선택한 서버 정보를 추가
+                     *
+                     * 프론트에서 서버를 확실하게
+                     * 구분할 수 있도록 함.
+                     */
+
+                    auctionData =
+                        auctionData.map(
+                            item => {
+
+                                return {
+
+                                    ...item,
+
+                                    auctionServer:
+                                        auctionServer.name,
+
+                                    auctionServerKey:
+                                        auctionServer.key,
+
+                                    auctionWorldId:
+                                        auctionServer.worldId
+
+                                };
+
+                            }
+                        );
+
+
                     sendJson(
                         res,
                         200,
                         {
+
+                            success:
+                                true,
+
                             server:
                                 auctionServer.name,
+
+                            serverKey:
+                                auctionServer.key,
 
                             worldId:
                                 auctionServer.worldId,
 
+                            itemName:
+                                itemName,
+
+                            total:
+                                auctionData.length,
+
                             data:
-                                auction.resultData
-                                    ? auction.resultData.resData || []
-                                    : auction.resData || [],
+                                auctionData,
 
                             raw:
                                 auction
+
                         }
                     );
 
@@ -1346,7 +1759,9 @@ const server =
                         );
 
 
-                    if (!date) {
+                    if (
+                        !date
+                    ) {
 
                         sendJson(
                             res,
@@ -1368,7 +1783,9 @@ const server =
                         );
 
 
-                    if (!history) {
+                    if (
+                        !history
+                    ) {
 
                         sendJson(
                             res,
@@ -1434,8 +1851,29 @@ const server =
                 }
 
 
+                // ==================================================
+                // 경로 보안
+                // ==================================================
+
+                const normalizedFilePath =
+                    path.normalize(
+                        filePath
+                    );
+
+
+                const normalizedRoot =
+                    path.normalize(
+                        __dirname +
+                        path.sep
+                    );
+
+
                 if (
-                    !filePath.startsWith(
+                    !normalizedFilePath.startsWith(
+                        normalizedRoot
+                    ) &&
+                    normalizedFilePath !==
+                    path.normalize(
                         __dirname
                     )
                 ) {
@@ -1453,9 +1891,13 @@ const server =
                 }
 
 
+                // ==================================================
+                // 파일 확장자
+                // ==================================================
+
                 const ext =
                     path.extname(
-                        filePath
+                        normalizedFilePath
                     ).toLowerCase();
 
 
@@ -1486,19 +1928,27 @@ const server =
                         "image/gif",
 
                     ".ico":
-                        "image/x-icon"
+                        "image/x-icon",
+
+                    ".svg":
+                        "image/svg+xml",
+
+                    ".webp":
+                        "image/webp"
 
                 };
 
 
                 fs.readFile(
-                    filePath,
+                    normalizedFilePath,
                     (
                         error,
                         content
                     ) => {
 
-                        if (error) {
+                        if (
+                            error
+                        ) {
 
                             res.writeHead(
                                 404
@@ -1569,6 +2019,10 @@ server.listen(
     () => {
 
         console.log(
+            "================================"
+        );
+
+        console.log(
             "SERVER STARTED"
         );
 
@@ -1580,6 +2034,10 @@ server.listen(
         console.log(
             "http://localhost:" +
             PORT
+        );
+
+        console.log(
+            "================================"
         );
 
 
