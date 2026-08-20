@@ -1,97 +1,120 @@
-// ============================================================
-// 아스달 지지 - 전체 script.js
-// 랭킹 + 과거 랭킹 + 플레이어 기록 + 거래소
-// ============================================================
-
-
-// ============================================================
-// HTML 요소
-// ============================================================
-
 const rankingBody = document.getElementById("rankingBody");
 const serverFilter = document.getElementById("serverFilter");
 const searchInput = document.getElementById("searchInput");
 const searchButton = document.getElementById("searchButton");
 const sortFilter = document.getElementById("sortFilter");
-const historyFilter = document.getElementById("historyFilter");
-const rankingStatus = document.getElementById("rankingStatus");
 
-const rankingNav = document.getElementById("rankingNav");
-const marketNav = document.getElementById("marketNav");
-
-const rankingSection = document.getElementById("rankingSection");
-const marketSection = document.getElementById("marketSection");
-
-const itemSearchInput = document.getElementById("itemSearchInput");
-const itemTierFilter = document.getElementById("itemTierFilter");
-const itemSortFilter = document.getElementById("itemSortFilter");
-const itemSearchButton = document.getElementById("itemSearchButton");
-
-const marketStatus = document.getElementById("marketStatus");
-const marketBody = document.getElementById("marketBody");
+// HTML에 없어도 자동 생성
+let historyFilter = document.getElementById("historyFilter");
+let rankingStatus = document.getElementById("rankingStatus");
 
 
-// ============================================================
-// 랭킹 서버
-// ============================================================
+// ==============================
+// 기본 요소 확인
+// ==============================
+
+if (!rankingBody || !serverFilter || !searchInput || !searchButton || !sortFilter) {
+
+    console.error("필수 HTML 요소를 찾을 수 없습니다.");
+
+}
+
+
+// ==============================
+// 과거 날짜 선택창 자동 생성
+// ==============================
+
+if (!historyFilter) {
+
+    historyFilter = document.createElement("select");
+
+    historyFilter.id = "historyFilter";
+
+    historyFilter.innerHTML = `
+        <option value="current">현재 랭킹</option>
+    `;
+
+    const searchBox =
+        document.querySelector(".search-box");
+
+    if (searchBox) {
+        searchBox.appendChild(historyFilter);
+    }
+
+}
+
+
+// ==============================
+// 랭킹 상태 표시 자동 생성
+// ==============================
+
+if (!rankingStatus) {
+
+    rankingStatus = document.createElement("div");
+
+    rankingStatus.id = "rankingStatus";
+
+    rankingStatus.style.margin =
+        "15px 0";
+
+    rankingStatus.style.color =
+        "#aaa";
+
+    const rankingSection =
+        document.querySelector(".ranking");
+
+    if (rankingSection) {
+
+        const title =
+            rankingSection.querySelector("h2");
+
+        if (title) {
+            title.insertAdjacentElement(
+                "afterend",
+                rankingStatus
+            );
+        } else {
+            rankingSection.prepend(
+                rankingStatus
+            );
+        }
+
+    }
+
+}
+
+
+// ==============================
+// 아스달 월드 목록
+// ==============================
 
 const worlds = {
 
-    "뉴월드": 3000,
-    "글로벌": 1000,
-    "크라본": 70110
+    "크라본": 70110,
+    "하제산": 32201,
+    "추산도": 32202,
+    "남달산": 32203,
+    "이브나": 12301,
+    "이나이신기": 12302,
+    "윤슬": 12303,
+    "아라문해슬라": 12304,
+    "다르쿠스": 12305,
+    "미하제": 12306,
+    "시아르": 12307,
+    "토로스": 92701,
+    "레오": 70314,
+    "벨라": 70315,
+    "파보": 70316,
+    "아라": 70319,
+    "오리온": 70320,
+    "리라": 70321
 
 };
 
 
-// ============================================================
-// 랭킹 서버 그룹
-// ============================================================
-
-const serverGroups = {
-
-    "뉴월드": [
-        ["뉴월드", 3000]
-    ],
-
-    "글로벌": [
-        ["글로벌", 1000]
-    ],
-
-    "크라본": [
-        ["크라본", 70110]
-    ]
-
-};
-
-
-// ============================================================
-// 거래소 서버
-// ============================================================
-
-const auctionServers = {
-
-    "newworld": {
-        name: "뉴월드",
-        worldId: 3000
-    },
-
-    "global": {
-        name: "글로벌",
-        worldId: 1000
-    },
-
-    "krabon": {
-        name: "크라본",
-        worldId: 70110
-    }
-
-};
-
-
-// ============================================================
-// 전역 데이터
-// ============================================================
+// ==============================
+// 현재 데이터
+// ==============================
 
 let currentData = [];
 
@@ -99,14 +122,72 @@ let currentHistoryDate = "current";
 
 let historyCache = {};
 
-let currentMarketData = [];
 
-let currentAuctionServer = "newworld";
+// ==============================
+// 서버 선택창 만들기
+// ==============================
+
+serverFilter.innerHTML = "";
 
 
-// ============================================================
-// 공통 숫자 처리
-// ============================================================
+// 전체 서버
+
+const allOption =
+    document.createElement("option");
+
+allOption.value = "all";
+
+allOption.textContent =
+    "전체 서버";
+
+serverFilter.appendChild(
+    allOption
+);
+
+
+// 개별 서버
+
+Object.entries(worlds).forEach(
+    function ([serverName, worldId]) {
+
+        const option =
+            document.createElement("option");
+
+        option.value =
+            worldId;
+
+        option.textContent =
+            serverName;
+
+        serverFilter.appendChild(
+            option
+        );
+
+    }
+);
+
+
+// ==============================
+// 서버 이름 찾기
+// ==============================
+
+function getServerName(worldId) {
+
+    return Object.keys(worlds).find(
+        function (name) {
+
+            return String(worlds[name]) ===
+                String(worldId);
+
+        }
+    ) || "";
+
+}
+
+
+// ==============================
+// 숫자 표시
+// ==============================
 
 function formatNumber(value) {
 
@@ -115,10 +196,13 @@ function formatNumber(value) {
         value === undefined ||
         value === ""
     ) {
+
         return "-";
+
     }
 
-    const number = Number(value);
+    const number =
+        Number(value);
 
     if (Number.isNaN(number)) {
         return "-";
@@ -129,44 +213,40 @@ function formatNumber(value) {
 }
 
 
-// ============================================================
+// ==============================
 // 변화량 표시
-// ============================================================
+// ==============================
 
 function formatChange(value) {
 
-    const number = Number(value) || 0;
+    const number =
+        Number(value) || 0;
+
 
     if (number > 0) {
 
         return `
-            <span style="
-                color:#4ade80;
-                font-weight:bold;
-            ">
+            <span class="history-up">
                 ▲ ${formatNumber(number)}
             </span>
         `;
 
     }
 
+
     if (number < 0) {
 
         return `
-            <span style="
-                color:#f87171;
-                font-weight:bold;
-            ">
+            <span class="history-down">
                 ▼ ${formatNumber(Math.abs(number))}
             </span>
         `;
 
     }
 
+
     return `
-        <span style="
-            color:#999;
-        ">
+        <span class="history-same">
             - 0
         </span>
     `;
@@ -174,164 +254,26 @@ function formatChange(value) {
 }
 
 
-// ============================================================
-// 서버 이름
-// ============================================================
-
-function getServerName(worldId) {
-
-    return Object.keys(worlds).find(
-        function (name) {
-
-            return String(worlds[name]) === String(worldId);
-
-        }
-    ) || "";
-
-}
-
-
-// ============================================================
-// 랭킹 서버 선택창
-// ============================================================
-
-function buildServerFilter() {
-
-    if (!serverFilter) {
-        return;
-    }
-
-    serverFilter.innerHTML = "";
-
-    const allOption =
-        document.createElement("option");
-
-    allOption.value = "all";
-    allOption.textContent = "전체 서버";
-
-    serverFilter.appendChild(allOption);
-
-
-    Object.entries(serverGroups).forEach(
-        function ([groupName, servers]) {
-
-            const group =
-                document.createElement("optgroup");
-
-            group.label = groupName;
-
-
-            servers.forEach(
-                function ([serverName, worldId]) {
-
-                    const option =
-                        document.createElement("option");
-
-                    option.value = worldId;
-                    option.textContent = serverName;
-
-                    group.appendChild(option);
-
-                }
-            );
-
-
-            serverFilter.appendChild(group);
-
-        }
-    );
-
-}
-
-
-// ============================================================
-// 거래소 서버 선택창
-// ============================================================
-
-let auctionServerFilter =
-    document.getElementById("auctionServerFilter");
-
-
-function buildAuctionServerFilter() {
-
-    if (!auctionServerFilter) {
-
-        const searchBox =
-            document.querySelector(".market-search-box");
-
-        if (!searchBox) {
-            return;
-        }
-
-
-        auctionServerFilter =
-            document.createElement("select");
-
-        auctionServerFilter.id =
-            "auctionServerFilter";
-
-
-        auctionServerFilter.innerHTML = `
-
-            <option value="newworld">
-                뉴월드 거래소
-            </option>
-
-            <option value="global">
-                글로벌 거래소
-            </option>
-
-            <option value="krabon">
-                크라본 거래소
-            </option>
-
-        `;
-
-
-        searchBox.insertBefore(
-            auctionServerFilter,
-            searchBox.firstChild
-        );
-
-    }
-
-
-    auctionServerFilter.value =
-        currentAuctionServer;
-
-
-    auctionServerFilter.onchange =
-        function () {
-
-            currentAuctionServer =
-                auctionServerFilter.value;
-
-            loadMarket();
-
-        };
-
-}
-
-
-// ============================================================
-// 과거 랭킹 날짜
-// ============================================================
+// ==============================
+// 과거 날짜 목록
+// ==============================
 
 async function loadHistoryDates() {
-
-    if (!historyFilter) {
-        return;
-    }
-
 
     try {
 
         const response =
-            await fetch("/api/history-dates");
+            await fetch(
+                "/api/history-dates"
+            );
 
 
         if (!response.ok) {
-            return;
+
+            throw new Error(
+                "날짜 목록 오류"
+            );
+
         }
 
 
@@ -340,9 +282,7 @@ async function loadHistoryDates() {
 
 
         const dates =
-            Array.isArray(result.dates)
-                ? result.dates
-                : [];
+            result.dates || [];
 
 
         historyFilter.innerHTML = "";
@@ -351,8 +291,11 @@ async function loadHistoryDates() {
         const currentOption =
             document.createElement("option");
 
-        currentOption.value = "current";
-        currentOption.textContent = "현재 랭킹";
+        currentOption.value =
+            "current";
+
+        currentOption.textContent =
+            "현재 랭킹";
 
         historyFilter.appendChild(
             currentOption
@@ -365,11 +308,15 @@ async function loadHistoryDates() {
                 const option =
                     document.createElement("option");
 
-                option.value = date;
+                option.value =
+                    date;
+
                 option.textContent =
                     date + " 랭킹";
 
-                historyFilter.appendChild(option);
+                historyFilter.appendChild(
+                    option
+                );
 
             }
         );
@@ -391,9 +338,9 @@ async function loadHistoryDates() {
 }
 
 
-// ============================================================
-// 특정 서버 랭킹
-// ============================================================
+// ==============================
+// 현재 개별 서버 랭킹
+// ==============================
 
 async function loadRanking() {
 
@@ -416,18 +363,11 @@ async function loadRanking() {
 
 
     rankingBody.innerHTML = `
-
         <tr>
-
             <td colspan="6">
-
-                ${serverName}
-                랭킹을 불러오는 중입니다...
-
+                ${serverName} 랭킹을 불러오는 중입니다...
             </td>
-
         </tr>
-
     `;
 
 
@@ -443,7 +383,7 @@ async function loadRanking() {
         if (!response.ok) {
 
             throw new Error(
-                "서버 오류 " +
+                "서버 오류: " +
                 response.status
             );
 
@@ -456,9 +396,7 @@ async function loadRanking() {
 
         if (
             !result.resultData ||
-            !Array.isArray(
-                result.resultData.resData
-            )
+            !result.resultData.resData
         ) {
 
             throw new Error(
@@ -505,21 +443,11 @@ async function loadRanking() {
 
 
         rankingBody.innerHTML = `
-
             <tr>
-
                 <td colspan="6">
-
                     랭킹 데이터를 불러오지 못했습니다.
-
-                    <br><br>
-
-                    ${error.message}
-
                 </td>
-
             </tr>
-
         `;
 
     }
@@ -527,37 +455,33 @@ async function loadRanking() {
 }
 
 
-// ============================================================
-// 전체 랭킹
-// ============================================================
+// ==============================
+// 현재 전체 랭킹
+// ==============================
 
 async function loadAllRanking() {
 
     rankingBody.innerHTML = `
-
         <tr>
-
             <td colspan="6">
-
                 전체 서버 랭킹을 불러오는 중입니다...
-
             </td>
-
         </tr>
-
     `;
 
 
     try {
 
         const response =
-            await fetch("/api/all-ranking");
+            await fetch(
+                "/api/all-ranking"
+            );
 
 
         if (!response.ok) {
 
             throw new Error(
-                "서버 오류 " +
+                "서버 오류: " +
                 response.status
             );
 
@@ -569,9 +493,7 @@ async function loadAllRanking() {
 
 
         currentData =
-            Array.isArray(result.data)
-                ? result.data
-                : [];
+            result.data || [];
 
 
         rankingStatus.textContent =
@@ -595,21 +517,11 @@ async function loadAllRanking() {
 
 
         rankingBody.innerHTML = `
-
             <tr>
-
                 <td colspan="6">
-
-                    전체 랭킹 데이터를 불러오지 못했습니다.
-
-                    <br><br>
-
-                    ${error.message}
-
+                    전체 서버 랭킹을 불러오지 못했습니다.
                 </td>
-
             </tr>
-
         `;
 
     }
@@ -617,9 +529,9 @@ async function loadAllRanking() {
 }
 
 
-// ============================================================
-// 과거 데이터
-// ============================================================
+// ==============================
+// 과거 랭킹 가져오기
+// ==============================
 
 async function getHistoryData(date) {
 
@@ -659,25 +571,18 @@ async function getHistoryData(date) {
 }
 
 
-// ============================================================
-// 과거 랭킹
-// ============================================================
+// ==============================
+// 과거 랭킹 표시
+// ==============================
 
 async function loadHistoryRanking(date) {
 
     rankingBody.innerHTML = `
-
         <tr>
-
             <td colspan="6">
-
-                ${date}
-                랭킹을 불러오는 중입니다...
-
+                ${date} 랭킹을 불러오는 중입니다...
             </td>
-
         </tr>
-
     `;
 
 
@@ -688,9 +593,7 @@ async function loadHistoryRanking(date) {
 
 
         currentData =
-            Array.isArray(result.data)
-                ? result.data
-                : [];
+            result.data || [];
 
 
         rankingStatus.textContent =
@@ -716,18 +619,11 @@ async function loadHistoryRanking(date) {
 
 
         rankingBody.innerHTML = `
-
             <tr>
-
                 <td colspan="6">
-
-                    ${date}
-                    의 랭킹 데이터가 없습니다.
-
+                    ${date}의 랭킹 데이터가 없습니다.
                 </td>
-
             </tr>
-
         `;
 
     }
@@ -735,27 +631,18 @@ async function loadHistoryRanking(date) {
 }
 
 
-// ============================================================
-// 검색 / 정렬
-// ============================================================
+// ==============================
+// 검색 / 서버 / 정렬
+// ==============================
 
 function applyFiltersAndSort() {
 
-    if (!rankingBody) {
-        return;
-    }
-
-
     const keyword =
-        searchInput
-            ? searchInput.value.trim()
-            : "";
+        searchInput.value.trim();
 
 
     const selectedServer =
-        serverFilter
-            ? serverFilter.value
-            : "all";
+        serverFilter.value;
 
 
     let filteredData =
@@ -774,24 +661,12 @@ function applyFiltersAndSort() {
                     );
 
 
-                let serverMatch = true;
-
-
-                if (
-                    selectedServer !== "all"
-                ) {
-
-                    serverMatch =
-                        String(
-                            player.server || ""
-                        ) ===
-                        String(
-                            getServerName(
-                                selectedServer
-                            )
-                        );
-
-                }
+                const serverMatch =
+                    selectedServer === "all" ||
+                    player.server ===
+                    getServerName(
+                        selectedServer
+                    );
 
 
                 return (
@@ -803,8 +678,9 @@ function applyFiltersAndSort() {
         );
 
 
+    // 전투력
+
     if (
-        sortFilter &&
         sortFilter.value === "power"
     ) {
 
@@ -822,8 +698,9 @@ function applyFiltersAndSort() {
     }
 
 
+    // 레벨
+
     if (
-        sortFilter &&
         sortFilter.value === "level"
     ) {
 
@@ -841,8 +718,9 @@ function applyFiltersAndSort() {
     }
 
 
+    // 닉네임
+
     if (
-        sortFilter &&
         sortFilter.value === "nickname"
     ) {
 
@@ -863,37 +741,30 @@ function applyFiltersAndSort() {
     }
 
 
-    displayRanking(filteredData);
+    displayRanking(
+        filteredData
+    );
 
 }
 
 
-// ============================================================
+// ==============================
 // 랭킹 출력
-// ============================================================
+// ==============================
 
 function displayRanking(data) {
 
     rankingBody.innerHTML = "";
 
 
-    if (
-        !Array.isArray(data) ||
-        data.length === 0
-    ) {
+    if (data.length === 0) {
 
         rankingBody.innerHTML = `
-
             <tr>
-
                 <td colspan="6">
-
                     검색 결과가 없습니다.
-
                 </td>
-
             </tr>
-
         `;
 
         return;
@@ -914,7 +785,6 @@ function displayRanking(data) {
 
             const rank =
                 player.totalRank ||
-                player.rank ||
                 index + 1;
 
 
@@ -926,13 +796,7 @@ function displayRanking(data) {
 
                 <td
                     class="nickname-history"
-                    style="
-                        cursor:pointer;
-                        color:#fff;
-                        font-weight:600;
-                        text-decoration:none;
-                    "
-                    title="클릭하면 과거 기록을 확인할 수 있습니다."
+                    title="클릭하면 과거 전투력을 확인할 수 있습니다."
                 >
                     ${nickname}
                 </td>
@@ -966,33 +830,21 @@ function displayRanking(data) {
                 );
 
 
-            if (nicknameCell) {
+            nicknameCell.addEventListener(
+                "click",
+                function () {
 
-                nicknameCell.addEventListener(
-                    "click",
-                    function (event) {
+                    openPlayerHistory(
+                        player
+                    );
 
-                        event.preventDefault();
-                        event.stopPropagation();
-
-                        console.log(
-                            "[아스달 지지] 이름 클릭:",
-                            player.name,
-                            player.server
-                        );
+                }
+            );
 
 
-                        openPlayerHistory(
-                            player
-                        );
-
-                    }
-                );
-
-            }
-
-
-            rankingBody.appendChild(row);
+            rankingBody.appendChild(
+                row
+            );
 
         }
     );
@@ -1000,36 +852,56 @@ function displayRanking(data) {
 }
 
 
-// ============================================================
+// ==============================
+// 날짜 배열
+// ==============================
+
+async function loadHistoryDateArray() {
+
+    const response =
+        await fetch(
+            "/api/history-dates"
+        );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            "날짜 목록 오류"
+        );
+
+    }
+
+
+    const result =
+        await response.json();
+
+
+    return result.dates || [];
+
+}
+
+
+// ==============================
 // 현재 랭킹에서 플레이어 찾기
-// ============================================================
+// ==============================
 
 async function findPlayerInCurrentRanking(player) {
 
     try {
+
+        // 현재 데이터가 이미 전체 랭킹이면 먼저 확인
 
         const found =
             currentData.find(
                 function (item) {
 
                     return (
+                        String(item.name || "") ===
+                        String(player.name || "") &&
 
-                        String(
-                            item.name || ""
-                        ) ===
-                        String(
-                            player.name || ""
-                        )
-
-                        &&
-
-                        String(
-                            item.server || ""
-                        ) ===
-                        String(
-                            player.server || ""
-                        )
-
+                        String(item.server || "") ===
+                        String(player.server || "")
                     );
 
                 }
@@ -1037,16 +909,24 @@ async function findPlayerInCurrentRanking(player) {
 
 
         if (found) {
+
             return found;
+
         }
 
 
+        // 전체 랭킹 다시 요청
+
         const response =
-            await fetch("/api/all-ranking");
+            await fetch(
+                "/api/all-ranking"
+            );
 
 
         if (!response.ok) {
+
             return null;
+
         }
 
 
@@ -1055,32 +935,18 @@ async function findPlayerInCurrentRanking(player) {
 
 
         const data =
-            Array.isArray(result.data)
-                ? result.data
-                : [];
+            result.data || [];
 
 
         return data.find(
             function (item) {
 
                 return (
+                    String(item.name || "") ===
+                    String(player.name || "") &&
 
-                    String(
-                        item.name || ""
-                    ) ===
-                    String(
-                        player.name || ""
-                    )
-
-                    &&
-
-                    String(
-                        item.server || ""
-                    ) ===
-                    String(
-                        player.server || ""
-                    )
-
+                    String(item.server || "") ===
+                    String(player.server || "")
                 );
 
             }
@@ -1094,7 +960,6 @@ async function findPlayerInCurrentRanking(player) {
             error
         );
 
-
         return null;
 
     }
@@ -1102,9 +967,9 @@ async function findPlayerInCurrentRanking(player) {
 }
 
 
-// ============================================================
-// 플레이어 과거 기록 가져오기
-// ============================================================
+// ==============================
+// 플레이어 과거 기록
+// ==============================
 
 async function getPlayerHistory(player) {
 
@@ -1122,13 +987,13 @@ async function getPlayerHistory(player) {
         try {
 
             const history =
-                await getHistoryData(date);
+                await getHistoryData(
+                    date
+                );
 
 
             const data =
-                Array.isArray(history.data)
-                    ? history.data
-                    : [];
+                history.data || [];
 
 
             const match =
@@ -1142,9 +1007,7 @@ async function getPlayerHistory(player) {
                             ) ===
                             String(
                                 player.name || ""
-                            )
-
-                            &&
+                            ) &&
 
                             String(
                                 item.server || ""
@@ -1163,7 +1026,8 @@ async function getPlayerHistory(player) {
 
                 records.push({
 
-                    date: date,
+                    date:
+                        date,
 
                     name:
                         match.name,
@@ -1184,8 +1048,7 @@ async function getPlayerHistory(player) {
 
                     rank:
                         Number(
-                            match.totalRank ||
-                            match.rank
+                            match.totalRank
                         ) || 0
 
                 });
@@ -1206,20 +1069,34 @@ async function getPlayerHistory(player) {
     }
 
 
+    // 현재 데이터 추가
+
     let currentPlayer =
         player;
 
 
-    const foundCurrent =
-        await findPlayerInCurrentRanking(
-            player
-        );
+    if (
+        currentHistoryDate !==
+        "current"
+    ) {
+
+        const found =
+            await findPlayerInCurrentRanking(
+                player
+            );
 
 
-    if (foundCurrent) {
+        if (found) {
 
-        currentPlayer =
-            foundCurrent;
+            currentPlayer =
+                found;
+
+        } else {
+
+            currentPlayer =
+                null;
+
+        }
 
     }
 
@@ -1228,7 +1105,8 @@ async function getPlayerHistory(player) {
 
         records.unshift({
 
-            date: "현재",
+            date:
+                "현재",
 
             name:
                 currentPlayer.name,
@@ -1249,8 +1127,7 @@ async function getPlayerHistory(player) {
 
             rank:
                 Number(
-                    currentPlayer.totalRank ||
-                    currentPlayer.rank
+                    currentPlayer.totalRank
                 ) || 0
 
         });
@@ -1261,18 +1138,27 @@ async function getPlayerHistory(player) {
     records.sort(
         function (a, b) {
 
-            if (a.date === "현재") {
+            if (
+                a.date === "현재"
+            ) {
+
                 return -1;
+
             }
 
-            if (b.date === "현재") {
+
+            if (
+                b.date === "현재"
+            ) {
+
                 return 1;
+
             }
 
-            return String(b.date)
-                .localeCompare(
-                    String(a.date)
-                );
+
+            return b.date.localeCompare(
+                a.date
+            );
 
         }
     );
@@ -1283,47 +1169,11 @@ async function getPlayerHistory(player) {
 }
 
 
-// ============================================================
-// 날짜 목록
-// ============================================================
-
-async function loadHistoryDateArray() {
-
-    const response =
-        await fetch("/api/history-dates");
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            "날짜 목록 오류"
-        );
-
-    }
-
-
-    const result =
-        await response.json();
-
-
-    return Array.isArray(result.dates)
-        ? result.dates
-        : [];
-
-}
-
-
-// ============================================================
-// 플레이어 기록 모달 열기
-// ============================================================
+// ==============================
+// 플레이어 기록 모달
+// ==============================
 
 async function openPlayerHistory(player) {
-
-    console.log(
-        "[아스달 지지] 플레이어 기록 열기:",
-        player
-    );
-
 
     const modal =
         createHistoryModal();
@@ -1337,21 +1187,15 @@ async function openPlayerHistory(player) {
 
     content.innerHTML = `
 
-        <div style="
-            text-align:center;
-            padding:50px 20px;
-            font-size:18px;
-        ">
-
-            ${player.name || "-"}
-            의 과거 기록을 불러오는 중...
-
+        <div class="history-loading">
+            ${player.name || "-"}의 과거 기록을 불러오는 중...
         </div>
 
     `;
 
 
-    modal.style.display = "flex";
+    modal.style.display =
+        "flex";
 
 
     try {
@@ -1363,27 +1207,13 @@ async function openPlayerHistory(player) {
 
 
         if (
-            !records ||
             records.length === 0
         ) {
 
             content.innerHTML = `
 
-                <div style="
-                    text-align:center;
-                    padding:60px 20px;
-                    font-size:18px;
-                ">
-
-                    <div style="
-                        font-size:24px;
-                        margin-bottom:15px;
-                    ">
-                        ${player.name || "-"}
-                    </div>
-
+                <div class="history-empty">
                     과거 랭킹 기록이 없습니다.
-
                 </div>
 
             `;
@@ -1405,147 +1235,77 @@ async function openPlayerHistory(player) {
 
         const powerChange =
             previous
-                ? current.power -
-                  previous.power
+                ? current.power - previous.power
                 : 0;
 
 
         const rankChange =
             previous
-                ? previous.rank -
-                  current.rank
+                ? previous.rank - current.rank
                 : 0;
 
 
         let html = `
 
-            <div style="
-                margin-bottom:25px;
-            ">
+            <div class="player-history-header">
 
-                <div style="
-                    font-size:28px;
-                    font-weight:bold;
-                    margin-bottom:8px;
-                ">
-
+                <div class="history-player-name">
                     ${player.name || "-"}
-
                 </div>
 
-
-                <div style="
-                    color:#aaa;
-                    font-size:15px;
-                ">
-
+                <div class="history-player-info">
                     ${player.server || "-"}
                     ·
                     ${player.main_job || "-"}
-
                 </div>
 
             </div>
 
 
-            <div style="
-                display:grid;
-                grid-template-columns:
-                    repeat(3, 1fr);
-                gap:15px;
-                margin-bottom:30px;
-            ">
+            <div class="history-summary">
 
-                <div style="
-                    background:#1c1c1c;
-                    border-radius:10px;
-                    padding:20px;
-                    text-align:center;
-                ">
+                <div class="history-summary-box">
 
-                    <div style="
-                        color:#999;
-                        font-size:14px;
-                        margin-bottom:10px;
-                    ">
-
+                    <div class="history-summary-title">
                         현재 전투력
-
                     </div>
 
-                    <div style="
-                        font-size:24px;
-                        font-weight:bold;
-                    ">
-
+                    <div class="history-summary-value">
                         ${formatNumber(current.power)}
-
                     </div>
 
                 </div>
 
 
-                <div style="
-                    background:#1c1c1c;
-                    border-radius:10px;
-                    padding:20px;
-                    text-align:center;
-                ">
+                <div class="history-summary-box">
 
-                    <div style="
-                        color:#999;
-                        font-size:14px;
-                        margin-bottom:10px;
-                    ">
-
+                    <div class="history-summary-title">
                         전투력 변화
-
                     </div>
 
-                    <div style="
-                        font-size:20px;
-                        font-weight:bold;
-                    ">
-
+                    <div class="history-summary-value">
                         ${
                             previous
                             ? formatChange(powerChange)
                             : "-"
                         }
-
                     </div>
 
                 </div>
 
 
-                <div style="
-                    background:#1c1c1c;
-                    border-radius:10px;
-                    padding:20px;
-                    text-align:center;
-                ">
+                <div class="history-summary-box">
 
-                    <div style="
-                        color:#999;
-                        font-size:14px;
-                        margin-bottom:10px;
-                    ">
-
+                    <div class="history-summary-title">
                         순위 변화
-
                     </div>
 
-                    <div style="
-                        font-size:20px;
-                        font-weight:bold;
-                    ">
-
+                    <div class="history-summary-value">
                         ${
                             previous
                             ? formatChange(rankChange)
                             : "-"
                         }
-
                     </div>
 
                 </div>
@@ -1553,56 +1313,26 @@ async function openPlayerHistory(player) {
             </div>
 
 
-            <div style="
-                overflow-x:auto;
-            ">
+            <div class="history-table-wrap">
 
-                <table style="
-                    width:100%;
-                    border-collapse:collapse;
-                    min-width:800px;
-                ">
+                <table class="history-table">
 
                     <thead>
 
                         <tr>
 
-                            <th style="padding:12px;">
-                                날짜
-                            </th>
-
-                            <th style="padding:12px;">
-                                서버
-                            </th>
-
-                            <th style="padding:12px;">
-                                직업
-                            </th>
-
-                            <th style="padding:12px;">
-                                레벨
-                            </th>
-
-                            <th style="padding:12px;">
-                                전투력
-                            </th>
-
-                            <th style="padding:12px;">
-                                순위
-                            </th>
-
-                            <th style="padding:12px;">
-                                전투력 변화
-                            </th>
-
-                            <th style="padding:12px;">
-                                순위 변화
-                            </th>
+                            <th>날짜</th>
+                            <th>서버</th>
+                            <th>직업</th>
+                            <th>레벨</th>
+                            <th>전투력</th>
+                            <th>순위</th>
+                            <th>전투력 변화</th>
+                            <th>순위 변화</th>
 
                         </tr>
 
                     </thead>
-
 
                     <tbody>
 
@@ -1613,18 +1343,17 @@ async function openPlayerHistory(player) {
             function (record, index) {
 
                 const previousRecord =
-                    records[index + 1] ||
-                    null;
+                    records[index + 1] || null;
 
 
-                const recordPowerChange =
+                const powerChange =
                     previousRecord
                         ? record.power -
                           previousRecord.power
                         : 0;
 
 
-                const recordRankChange =
+                const rankChange =
                     previousRecord
                         ? previousRecord.rank -
                           record.rank
@@ -1635,54 +1364,48 @@ async function openPlayerHistory(player) {
 
                     <tr>
 
-                        <td style="padding:12px;">
+                        <td>
                             ${record.date}
                         </td>
 
-                        <td style="padding:12px;">
+                        <td>
                             ${record.server || "-"}
                         </td>
 
-                        <td style="padding:12px;">
+                        <td>
                             ${record.main_job || "-"}
                         </td>
 
-                        <td style="padding:12px;">
+                        <td>
                             ${record.level ?? "-"}
                         </td>
 
-                        <td style="padding:12px;">
+                        <td>
                             ${formatNumber(record.power)}
                         </td>
 
-                        <td style="padding:12px;">
-
+                        <td>
                             ${
                                 record.rank
                                 ? formatNumber(record.rank) + "위"
                                 : "-"
                             }
-
                         </td>
 
-                        <td style="padding:12px;">
-
+                        <td>
                             ${
                                 previousRecord
-                                ? formatChange(recordPowerChange)
+                                ? formatChange(powerChange)
                                 : "-"
                             }
-
                         </td>
 
-                        <td style="padding:12px;">
-
+                        <td>
                             ${
                                 previousRecord
-                                ? formatChange(recordRankChange)
+                                ? formatChange(rankChange)
                                 : "-"
                             }
-
                         </td>
 
                     </tr>
@@ -1718,30 +1441,8 @@ async function openPlayerHistory(player) {
 
         content.innerHTML = `
 
-            <div style="
-                text-align:center;
-                padding:60px 20px;
-            ">
-
-                <div style="
-                    font-size:20px;
-                    margin-bottom:15px;
-                ">
-
-                    기록을 불러오지 못했습니다.
-
-                </div>
-
-
-                <div style="
-                    color:#888;
-                    font-size:14px;
-                ">
-
-                    ${error.message}
-
-                </div>
-
+            <div class="history-empty">
+                과거 기록을 불러오지 못했습니다.
             </div>
 
         `;
@@ -1751,9 +1452,9 @@ async function openPlayerHistory(player) {
 }
 
 
-// ============================================================
-// 플레이어 기록 모달 생성
-// ============================================================
+// ==============================
+// 과거 기록 모달 생성
+// ==============================
 
 function createHistoryModal() {
 
@@ -1764,96 +1465,37 @@ function createHistoryModal() {
 
 
     if (modal) {
+
         return modal;
+
     }
 
 
     modal =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     modal.id =
         "playerHistoryModal";
 
 
-    modal.style.position = "fixed";
-    modal.style.top = "0";
-    modal.style.left = "0";
-    modal.style.width = "100vw";
-    modal.style.height = "100vh";
-
-    modal.style.background =
-        "rgba(0, 0, 0, 0.8)";
-
-    modal.style.display = "none";
-
-    modal.style.alignItems = "center";
-    modal.style.justifyContent = "center";
-
-    modal.style.zIndex = "999999";
-
-    modal.style.boxSizing = "border-box";
-
-
     modal.innerHTML = `
 
-        <div
-            class="player-history-modal"
-            style="
-                position:relative;
-                width:90%;
-                max-width:1200px;
-                max-height:85vh;
-                overflow:auto;
+        <div class="player-history-overlay">
 
-                background:#111;
-                color:#fff;
+            <div class="player-history-modal">
 
-                border:1px solid #333;
-                border-radius:15px;
+                <button
+                    class="player-history-close"
+                    type="button"
+                >
+                    ×
+                </button>
 
-                padding:30px;
-
-                box-sizing:border-box;
-
-                box-shadow:
-                    0 20px 80px
-                    rgba(0,0,0,0.7);
-            "
-        >
-
-            <button
-                id="playerHistoryClose"
-                type="button"
-                style="
-                    position:absolute;
-                    top:12px;
-                    right:15px;
-
-                    width:40px;
-                    height:40px;
-
-                    border:0;
-                    border-radius:50%;
-
-                    background:#222;
-                    color:#fff;
-
-                    font-size:28px;
-                    line-height:40px;
-
-                    cursor:pointer;
-
-                    z-index:10;
-                "
-            >
-                ×
-            </button>
-
-
-            <div
-                class="player-history-content"
-            >
+                <div class="player-history-content">
+                </div>
 
             </div>
 
@@ -1862,12 +1504,14 @@ function createHistoryModal() {
     `;
 
 
-    document.body.appendChild(modal);
+    document.body.appendChild(
+        modal
+    );
 
 
     const closeButton =
         modal.querySelector(
-            "#playerHistoryClose"
+            ".player-history-close"
         );
 
 
@@ -1882,30 +1526,18 @@ function createHistoryModal() {
     );
 
 
-    modal.addEventListener(
+    const overlay =
+        modal.querySelector(
+            ".player-history-overlay"
+        );
+
+
+    overlay.addEventListener(
         "click",
         function (event) {
 
             if (
-                event.target === modal
-            ) {
-
-                modal.style.display =
-                    "none";
-
-            }
-
-        }
-    );
-
-
-    document.addEventListener(
-        "keydown",
-        function (event) {
-
-            if (
-                event.key === "Escape" &&
-                modal.style.display === "flex"
+                event.target === overlay
             ) {
 
                 modal.style.display =
@@ -1922,34 +1554,242 @@ function createHistoryModal() {
 }
 
 
-// ============================================================
+// ==============================
+// 모달 스타일
+// ==============================
+
+const historyStyle =
+    document.createElement(
+        "style"
+    );
+
+
+historyStyle.textContent = `
+
+#playerHistoryModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+}
+
+.player-history-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.player-history-modal {
+    position: relative;
+    width: min(1100px, 95vw);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #111;
+    color: #fff;
+    border-radius: 14px;
+    padding: 28px;
+    box-sizing: border-box;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.player-history-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 50%;
+    background: #333;
+    color: #fff;
+    font-size: 26px;
+    cursor: pointer;
+}
+
+.player-history-close:hover {
+    background: #555;
+}
+
+.history-player-name {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.history-player-info {
+    color: #aaa;
+    margin-bottom: 22px;
+}
+
+.history-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.history-summary-box {
+    background: #1c1c1c;
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.history-summary-title {
+    color: #999;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.history-summary-value {
+    font-size: 21px;
+    font-weight: 700;
+}
+
+.history-table-wrap {
+    overflow-x: auto;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 850px;
+}
+
+.history-table th,
+.history-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #292929;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.history-table th {
+    background: #1b1b1b;
+    color: #aaa;
+    font-size: 13px;
+}
+
+.history-table td {
+    font-size: 14px;
+}
+
+.history-up {
+    color: #ff5c5c;
+    font-weight: 700;
+}
+
+.history-down {
+    color: #4da3ff;
+    font-weight: 700;
+}
+
+.history-same {
+    color: #999;
+}
+
+.history-loading,
+.history-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #aaa;
+}
+
+.nickname-history {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.nickname-history:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 700px) {
+
+    .history-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .player-history-modal {
+        padding: 20px;
+    }
+
+}
+
+`;
+
+document.head.appendChild(
+    historyStyle
+);
+
+
+// ==============================
 // 서버 변경
-// ============================================================
+// ==============================
 
-if (serverFilter) {
+serverFilter.addEventListener(
+    "change",
+    async function () {
 
-    serverFilter.addEventListener(
-        "change",
-        async function () {
+        const selectedServer =
+            serverFilter.value;
 
-            const selectedServer =
-                serverFilter.value;
 
+        if (
+            currentHistoryDate !==
+            "current"
+        ) {
+
+            applyFiltersAndSort();
+
+            return;
+
+        }
+
+
+        if (
+            selectedServer === "all"
+        ) {
+
+            await loadAllRanking();
+
+        } else {
+
+            await loadRanking();
+
+        }
+
+    }
+);
+
+
+// ==============================
+// 날짜 변경
+// ==============================
+
+historyFilter.addEventListener(
+    "change",
+    async function () {
+
+        const selectedDate =
+            historyFilter.value;
+
+
+        currentHistoryDate =
+            selectedDate;
+
+
+        if (
+            selectedDate ===
+            "current"
+        ) {
 
             if (
-                currentHistoryDate !==
-                "current"
-            ) {
-
-                applyFiltersAndSort();
-
-                return;
-
-            }
-
-
-            if (
-                selectedServer === "all"
+                serverFilter.value ===
+                "all"
             ) {
 
                 await loadAllRanking();
@@ -1960,825 +1800,76 @@ if (serverFilter) {
 
             }
 
-        }
-    );
-
-}
-
-
-// ============================================================
-// 과거 날짜 변경
-// ============================================================
-
-if (historyFilter) {
-
-    historyFilter.addEventListener(
-        "change",
-        async function () {
-
-            const selectedDate =
-                historyFilter.value;
-
-
-            currentHistoryDate =
-                selectedDate;
-
-
-            if (
-                selectedDate ===
-                "current"
-            ) {
-
-                if (
-                    serverFilter.value ===
-                    "all"
-                ) {
-
-                    await loadAllRanking();
-
-                } else {
-
-                    await loadRanking();
-
-                }
-
-                return;
-
-            }
-
-
-            await loadHistoryRanking(
-                selectedDate
-            );
+            return;
 
         }
-    );
 
-}
 
-
-// ============================================================
-// 검색
-// ============================================================
-
-if (searchButton) {
-
-    searchButton.addEventListener(
-        "click",
-        function () {
-
-            applyFiltersAndSort();
-
-        }
-    );
-
-}
-
-
-if (searchInput) {
-
-    searchInput.addEventListener(
-        "keydown",
-        function (event) {
-
-            if (
-                event.key === "Enter"
-            ) {
-
-                applyFiltersAndSort();
-
-            }
-
-        }
-    );
-
-}
-
-
-// ============================================================
-// 정렬
-// ============================================================
-
-if (sortFilter) {
-
-    sortFilter.addEventListener(
-        "change",
-        function () {
-
-            applyFiltersAndSort();
-
-        }
-    );
-
-}
-
-
-// ============================================================
-// 랭킹 / 거래소 전환
-// ============================================================
-
-if (rankingNav) {
-
-    rankingNav.addEventListener(
-        "click",
-        function (event) {
-
-            event.preventDefault();
-
-            rankingSection.style.display =
-                "block";
-
-            marketSection.style.display =
-                "none";
-
-        }
-    );
-
-}
-
-
-if (marketNav) {
-
-    marketNav.addEventListener(
-        "click",
-        function (event) {
-
-            event.preventDefault();
-
-            rankingSection.style.display =
-                "none";
-
-            marketSection.style.display =
-                "block";
-
-            loadMarket();
-
-        }
-    );
-
-}
-
-
-// ============================================================
-// 거래소 불러오기
-// ============================================================
-
-async function loadMarket() {
-
-    if (!marketBody) {
-        return;
-    }
-
-
-    const itemName =
-        itemSearchInput
-            ? itemSearchInput.value.trim()
-            : "";
-
-
-    const server =
-        currentAuctionServer;
-
-
-    const serverInfo =
-        auctionServers[server];
-
-
-    marketBody.innerHTML = `
-
-        <tr>
-
-            <td colspan="8">
-
-                ${
-                    serverInfo
-                    ? serverInfo.name
-                    : ""
-                }
-
-                거래소를 불러오는 중입니다...
-
-            </td>
-
-        </tr>
-
-    `;
-
-
-    if (marketStatus) {
-
-        marketStatus.textContent =
-            (
-                serverInfo
-                ? serverInfo.name
-                : ""
-            ) +
-            " 거래소 데이터를 불러오는 중입니다...";
-
-    }
-
-
-    try {
-
-        const apiUrl =
-            "/api/auction" +
-            "?server=" +
-            encodeURIComponent(server) +
-            "&itemname=" +
-            encodeURIComponent(itemName);
-
-
-        console.log(
-            "[MARKET REQUEST]",
-            apiUrl
+        await loadHistoryRanking(
+            selectedDate
         );
 
-
-        const response =
-            await fetch(apiUrl);
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "거래소 서버 오류 " +
-                response.status
-            );
-
-        }
+    }
+);
 
 
-        const result =
-            await response.json();
+// ==============================
+// 검색
+// ==============================
+
+searchButton.addEventListener(
+    "click",
+    function () {
+
+        applyFiltersAndSort();
+
+    }
+);
 
 
-        let data = [];
+// ==============================
+// 엔터 검색
+// ==============================
 
+searchInput.addEventListener(
+    "keydown",
+    function (event) {
 
         if (
-            Array.isArray(result)
+            event.key === "Enter"
         ) {
 
-            data = result;
-
-        } else if (
-            Array.isArray(result.data)
-        ) {
-
-            data = result.data;
-
-        } else if (
-            result.resultData &&
-            Array.isArray(
-                result.resultData.resData
-            )
-        ) {
-
-            data =
-                result.resultData.resData;
-
-        } else if (
-            result.resultData &&
-            Array.isArray(
-                result.resultData.data
-            )
-        ) {
-
-            data =
-                result.resultData.data;
-
-        }
-
-
-        currentMarketData =
-            data;
-
-
-        displayMarket(
-            currentMarketData
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "아이템 시세 오류:",
-            error
-        );
-
-
-        marketBody.innerHTML = `
-
-            <tr>
-
-                <td colspan="8">
-
-                    거래소 데이터를 불러오지 못했습니다.
-
-                    <br><br>
-
-                    ${error.message}
-
-                </td>
-
-            </tr>
-
-        `;
-
-
-        if (marketStatus) {
-
-            marketStatus.textContent =
-                "거래소 데이터를 불러오지 못했습니다.";
+            applyFiltersAndSort();
 
         }
 
     }
-
-}
-
-
-// ============================================================
-// 거래소 출력
-// ============================================================
-
-function displayMarket(data) {
-
-    if (!marketBody) {
-        return;
-    }
+);
 
 
-    marketBody.innerHTML = "";
+// ==============================
+// 정렬 변경
+// ==============================
 
+sortFilter.addEventListener(
+    "change",
+    function () {
 
-    if (
-        !Array.isArray(data) ||
-        data.length === 0
-    ) {
-
-        marketBody.innerHTML = `
-
-            <tr>
-
-                <td colspan="8">
-
-                    등록된 아이템이 없습니다.
-
-                </td>
-
-            </tr>
-
-        `;
-
-
-        if (marketStatus) {
-
-            const serverInfo =
-                auctionServers[
-                    currentAuctionServer
-                ];
-
-
-            marketStatus.textContent =
-                (
-                    serverInfo
-                    ? serverInfo.name
-                    : ""
-                ) +
-                " 거래소 검색 결과 0개";
-
-        }
-
-
-        return;
+        applyFiltersAndSort();
 
     }
+);
 
 
-    let filtered =
-        [...data];
-
-
-    const keyword =
-        itemSearchInput
-            ? itemSearchInput.value.trim()
-            : "";
-
-
-    if (keyword) {
-
-        filtered =
-            filtered.filter(
-                function (item) {
-
-                    const name =
-                        String(
-                            item.item_name ||
-                            item.itemName ||
-                            item.name ||
-                            ""
-                        );
-
-
-                    return name.includes(
-                        keyword
-                    );
-
-                }
-            );
-
-    }
-
-
-    if (
-        itemTierFilter &&
-        itemTierFilter.value !== "all"
-    ) {
-
-        const tier =
-            itemTierFilter.value;
-
-
-        filtered =
-            filtered.filter(
-                function (item) {
-
-                    const itemTier =
-                        String(
-                            item.tier_name ||
-                            item.tierName ||
-                            item.tier ||
-                            item.grade ||
-                            ""
-                        );
-
-
-                    return itemTier === tier;
-
-                }
-            );
-
-    }
-
-
-    if (itemSortFilter) {
-
-        const sort =
-            itemSortFilter.value;
-
-
-        if (sort === "lowest") {
-
-            filtered.sort(
-                function (a, b) {
-
-                    return (
-                        getItemPrice(a) -
-                        getItemPrice(b)
-                    );
-
-                }
-            );
-
-        }
-
-
-        if (sort === "highest") {
-
-            filtered.sort(
-                function (a, b) {
-
-                return (
-                        getItemHighestPrice(b) -
-                        getItemHighestPrice(a)
-                    );
-
-                }
-            );
-
-        }
-
-
-        if (sort === "average") {
-
-            filtered.sort(
-                function (a, b) {
-
-                    return (
-                        getItemAveragePrice(b) -
-                        getItemAveragePrice(a)
-                    );
-
-                }
-            );
-
-        }
-
-
-        if (sort === "trade") {
-
-            filtered.sort(
-                function (a, b) {
-
-                    return (
-                        getItemTradeCount(b) -
-                        getItemTradeCount(a)
-                    );
-
-                }
-            );
-
-        }
-
-    }
-
-
-    filtered.forEach(
-        function (item) {
-
-            const itemName =
-                item.item_name ||
-                item.itemName ||
-                item.name ||
-                "-";
-
-
-            const tier =
-                item.tier_name ||
-                item.tierName ||
-                item.tier ||
-                item.grade ||
-                "-";
-
-
-            const quality =
-                item.quality ||
-                item.quality_name ||
-                item.qualityName ||
-                "-";
-
-
-            const lowest =
-                getItemPrice(item);
-
-
-            const average =
-                getItemAveragePrice(item);
-
-
-            const highest =
-                getItemHighestPrice(item);
-
-
-            const trade =
-                getItemTradeCount(item);
-
-
-            const current =
-                item.current_count ??
-                item.currentCount ??
-                item.registered_count ??
-                item.registeredCount ??
-                item.count ??
-                "-";
-
-
-            const row =
-                document.createElement("tr");
-
-
-            row.innerHTML = `
-
-                <td>
-                    ${itemName}
-                </td>
-
-                <td>
-                    ${tier}
-                </td>
-
-                <td>
-                    ${quality}
-                </td>
-
-                <td>
-                    ${
-                        lowest === 0
-                        ? "-"
-                        : formatNumber(lowest)
-                    }
-                </td>
-
-                <td>
-                    ${
-                        average === 0
-                        ? "-"
-                        : formatNumber(average)
-                    }
-                </td>
-
-                <td>
-                    ${
-                        highest === 0
-                        ? "-"
-                        : formatNumber(highest)
-                    }
-                </td>
-
-                <td>
-                    ${
-                        trade === 0
-                        ? "-"
-                        : formatNumber(trade)
-                    }
-                </td>
-
-                <td>
-                    ${current}
-                </td>
-
-            `;
-
-
-            marketBody.appendChild(row);
-
-        }
-    );
-
-
-    if (marketStatus) {
-
-        const serverInfo =
-            auctionServers[
-                currentAuctionServer
-            ];
-
-
-        marketStatus.textContent =
-            (
-                serverInfo
-                ? serverInfo.name
-                : ""
-            ) +
-            " 거래소 검색 결과 " +
-            filtered.length +
-            "개";
-
-    }
-
-}
-
-
-// ============================================================
-// 거래소 가격
-// ============================================================
-
-function getItemPrice(item) {
-
-    const value =
-        item.lowest_price ??
-        item.lowestPrice ??
-        item.min_price ??
-        item.minPrice ??
-        item.price;
-
-
-    return Number(value) || 0;
-
-}
-
-
-function getItemAveragePrice(item) {
-
-    const value =
-        item.average_price ??
-        item.averagePrice ??
-        item.avg_price ??
-        item.avgPrice;
-
-
-    return Number(value) || 0;
-
-}
-
-
-function getItemHighestPrice(item) {
-
-    const value =
-        item.highest_price ??
-        item.highestPrice ??
-        item.max_price ??
-        item.maxPrice;
-
-
-    return Number(value) || 0;
-
-}
-
-
-function getItemTradeCount(item) {
-
-    const value =
-        item.trade_count ??
-        item.tradeCount ??
-        item.transaction_count ??
-        item.transactionCount ??
-        item.volume;
-
-
-    return Number(value) || 0;
-
-}
-
-
-// ============================================================
-// 거래소 검색
-// ============================================================
-
-if (itemSearchButton) {
-
-    itemSearchButton.addEventListener(
-        "click",
-        function () {
-
-            loadMarket();
-
-        }
-    );
-
-}
-
-
-if (itemSearchInput) {
-
-    itemSearchInput.addEventListener(
-        "keydown",
-        function (event) {
-
-            if (
-                event.key === "Enter"
-            ) {
-
-                loadMarket();
-
-            }
-
-        }
-    );
-
-}
-
-
-if (itemTierFilter) {
-
-    itemTierFilter.addEventListener(
-        "change",
-        function () {
-
-            displayMarket(
-                currentMarketData
-            );
-
-        }
-    );
-
-}
-
-
-if (itemSortFilter) {
-
-    itemSortFilter.addEventListener(
-        "change",
-        function () {
-
-            displayMarket(
-                currentMarketData
-            );
-
-        }
-    );
-
-}
-
-
-// ============================================================
+// ==============================
 // 시작
-// ============================================================
+// ==============================
 
-buildServerFilter();
+serverFilter.value =
+    "all";
 
-buildAuctionServerFilter();
-
-
-if (serverFilter) {
-
-    serverFilter.value = "all";
-
-}
-
-
-currentHistoryDate = "current";
+currentHistoryDate =
+    "current";
 
 
 loadHistoryDates();
