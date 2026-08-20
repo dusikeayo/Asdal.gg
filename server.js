@@ -858,7 +858,26 @@ const server =
 
                 }
 
+// ==================================
+// 거래소 조회
+// ==================================
 
+if (requestUrl.pathname === "/api/auction") {
+
+    const itemName =
+        requestUrl.searchParams.get("itemname") || "";
+
+    const auction =
+        await requestAuction(itemName);
+
+    sendJson(
+        res,
+        200,
+        auction
+    );
+
+    return;
+}
                 // ==================================
                 // 정적 파일
                 // ==================================
@@ -1114,3 +1133,77 @@ setInterval(
     },
     60 * 1000
 );
+// ========================================
+// 거래소 API
+// ========================================
+
+function requestAuction(itemName = "") {
+
+    return new Promise((resolve, reject) => {
+
+        const apiUrl =
+            "https://arthdal.netmarble.com/front-api/auction" +
+            "?worldId=-3000" +
+            "&lang=ko" +
+            "&page=1" +
+            "&row=50" +
+            "&reinforce_level_start=0" +
+            "&reinforce_level_end=20" +
+            "&tiers=0,1,2,3,4" +
+            "&categories=0,3,1,2,97,110,124,130,140,6,7,8,9,10,11,5,12,15,13,14,16,117,20,21,19,22,68,69,70,71,72,78,79,80,81,82,83,84,85,86,67,63,64,58,59,60,61,55,56,96,47,48,49,50,51,52,53,54,109,26,27,29,44,45,46,35,36,33,65" +
+            "&itemname=" +
+            encodeURIComponent(itemName);
+
+        https.get(
+            apiUrl,
+            {
+                headers: {
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept": "application/json"
+                }
+            },
+            response => {
+
+                let body = "";
+
+                response.on("data", chunk => {
+                    body += chunk;
+                });
+
+                response.on("end", () => {
+
+                    if (response.statusCode !== 200) {
+
+                        reject(
+                            new Error(
+                                "HTTP " + response.statusCode
+                            )
+                        );
+
+                        return;
+                    }
+
+                    try {
+
+                        resolve(
+                            JSON.parse(body)
+                        );
+
+                    } catch (error) {
+
+                        reject(error);
+
+                    }
+
+                });
+
+            }
+        ).on("error", error => {
+
+            reject(error);
+
+        });
+
+    });
+
+}
