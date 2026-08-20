@@ -1,14 +1,9 @@
-```html
 <!DOCTYPE html>
 <html lang="ko">
 
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>아스달 지지</title>
 
@@ -27,21 +22,19 @@
 
         <nav>
 
-            <button
-                type="button"
-                class="nav-button active"
-                data-page="rankingPage"
+            <a
+                href="#"
+                id="rankingNav"
             >
                 랭킹
-            </button>
+            </a>
 
-            <button
-                type="button"
-                class="nav-button"
-                data-page="auctionPage"
+            <a
+                href="#"
+                id="marketNav"
             >
-                거래소
-            </button>
+                아이템 시세
+            </a>
 
         </nav>
 
@@ -56,179 +49,246 @@
 
 
         <!-- ==============================
-             랭킹 페이지
+             RANKING SECTION
         =============================== -->
 
         <section
-            id="rankingPage"
-            class="page active-page"
+            class="ranking"
+            id="rankingSection"
         >
 
-            <div class="ranking">
-
-                <h2>랭킹</h2>
+            <h2>랭킹</h2>
 
 
-                <!-- 검색 영역 -->
+            <!-- 검색 영역 -->
 
-                <div class="search-box">
+            <div class="search-box">
 
-                    <input
-                        type="text"
-                        id="searchInput"
-                        placeholder="닉네임을 검색하세요"
-                    >
-
-
-                    <select id="serverFilter">
-
-                        <option value="all">
-                            전체 서버
-                        </option>
-
-                    </select>
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="닉네임을 검색하세요"
+                >
 
 
-                    <select id="sortFilter">
+                <select id="serverFilter">
 
-                        <option value="power">
-                            전투력 높은 순
-                        </option>
+                    <option value="all">
+                        전체 서버
+                    </option>
 
-                        <option value="level">
-                            레벨 높은 순
-                        </option>
-
-                        <option value="nickname">
-                            닉네임 순
-                        </option>
-
-                    </select>
+                </select>
 
 
-                    <select id="historyFilter">
+                <select id="sortFilter">
 
-                        <option value="current">
-                            현재 랭킹
-                        </option>
+                    <option value="power">
+                        전투력 높은 순
+                    </option>
 
-                    </select>
+                    <option value="level">
+                        레벨 높은 순
+                    </option>
 
+                    <option value="nickname">
+                        닉네임 순
+                    </option>
 
-                    <button
-                        id="searchButton"
-                        type="button"
-                    >
-                        검색
-                    </button>
-
-                </div>
+                </select>
 
 
-                <!-- 상태 -->
+                <!-- 과거 랭킹 -->
 
-                <div id="rankingStatus"></div>
+                <select id="historyFilter">
 
+                    <option value="current">
+                        현재 랭킹
+                    </option>
 
-                <!-- 랭킹 표 -->
-
-                <div class="table-wrap">
-
-                    <table>
-
-                        <thead>
-
-                            <tr>
-
-                                <th>순위</th>
-
-                                <th>닉네임</th>
-
-                                <th>직업</th>
-
-                                <th>레벨</th>
-
-                                <th>전투력</th>
-
-                                <th>서버</th>
-
-                            </tr>
-
-                        </thead>
+                </select>
 
 
-                        <tbody id="rankingBody">
-
-                        </tbody>
-
-                    </table>
-
-                </div>
+                <button
+                    id="searchButton"
+                    type="button"
+                >
+                    검색
+                </button>
 
             </div>
+
+
+            <!-- 현재 / 과거 상태 -->
+
+            <div id="rankingStatus"></div>
+
+
+            <!-- 랭킹 표 -->
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>순위</th>
+                        <th>닉네임</th>
+                        <th>직업</th>
+                        <th>레벨</th>
+                        <th>전투력</th>
+                        <th>서버</th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="rankingBody">
+
+                </tbody>
+
+            </table>
 
         </section>
 
 
 
         <!-- ==============================
-             거래소 페이지
+             MARKET SECTION
         =============================== -->
 
         <section
-            id="auctionPage"
-            class="page"
+            class="market"
+            id="marketSection"
+            style="display: none;"
         >
 
-            <div class="auction">
-
-                <h2>거래소</h2>
+            <h2>아이템 시세</h2>
 
 
-                <!-- 거래소 검색 -->
+            <!-- 아이템 검색 영역 -->
 
-                <div class="auction-search-box">
-
-                    <input
-                        type="text"
-                        id="auctionSearchInput"
-                        placeholder="아이템 이름을 검색하세요"
-                    >
-
-                    <button
-                        type="button"
-                        id="auctionSearchButton"
-                    >
-                        검색
-                    </button>
-
-                </div>
+            <div class="market-search-box">
 
 
-                <!-- 거래소 상태 -->
-
-                <div
-                    id="auctionStatus"
-                    class="auction-status"
-                >
-                    아이템 이름을 검색해주세요.
-                </div>
-
-
-                <!-- 거래소 결과 -->
-
-                <div
-                    id="auctionResults"
-                    class="auction-results"
+                <input
+                    type="text"
+                    id="itemSearchInput"
+                    placeholder="아이템 이름을 검색하세요"
                 >
 
-                </div>
+
+                <!-- 등급 -->
+
+                <select id="itemTierFilter">
+
+                    <option value="all">
+                        전체 등급
+                    </option>
+
+                    <option value="일반">
+                        일반
+                    </option>
+
+                    <option value="고급">
+                        고급
+                    </option>
+
+                    <option value="희귀">
+                        희귀
+                    </option>
+
+                    <option value="영웅">
+                        영웅
+                    </option>
+
+                    <option value="전설">
+                        전설
+                    </option>
+
+                </select>
+
+
+                <!-- 정렬 -->
+
+                <select id="itemSortFilter">
+
+                    <option value="lowest">
+                        최저가 낮은 순
+                    </option>
+
+                    <option value="highest">
+                        최고가 높은 순
+                    </option>
+
+                    <option value="average">
+                        평균가 높은 순
+                    </option>
+
+                    <option value="trade">
+                        거래량 많은 순
+                    </option>
+
+                </select>
+
+
+                <button
+                    id="itemSearchButton"
+                    type="button"
+                >
+                    검색
+                </button>
+
 
             </div>
 
+
+            <!-- 시세 상태 -->
+
+            <div id="marketStatus"></div>
+
+
+            <!-- 아이템 시세 표 -->
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>아이템</th>
+
+                        <th>등급</th>
+
+                        <th>품질</th>
+
+                        <th>최저가</th>
+
+                        <th>평균가</th>
+
+                        <th>최고가</th>
+
+                        <th>거래량</th>
+
+                        <th>현재 등록</th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="marketBody">
+
+                </tbody>
+
+            </table>
+
+
         </section>
 
+
     </main>
+
 
 
     <!-- ==============================
@@ -237,14 +297,20 @@
 
     <footer>
 
-        <p>아스달 지지</p>
+        <p>
+            아스달 지지
+        </p>
 
     </footer>
 
+
+
+    <!-- ==============================
+         SCRIPT
+    =============================== -->
 
     <script src="script.js"></script>
 
 </body>
 
 </html>
-```
