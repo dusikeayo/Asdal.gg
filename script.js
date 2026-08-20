@@ -1,6 +1,7 @@
+```javascript
 // ============================================================
 // 아스달 지지 - 전체 script.js
-// 랭킹 + 뉴월드/크라본/글로벌 서버 그룹 + 아이템 시세
+// 랭킹 + 뉴월드/글로벌/크라본 서버 그룹 + 아이템 시세
 // ============================================================
 
 
@@ -72,27 +73,9 @@ const marketBody =
 
 const worlds = {
 
-    "크라본": 70110,
-
-    "하제산": 32201,
-    "추산도": 32202,
-    "남달산": 32203,
-
-    "이브나": 12301,
-    "이나이신기": 12302,
-    "윤슬": 12303,
-    "아라문해슬라": 12304,
-    "다르쿠스": 12305,
-    "미하제": 12306,
-    "시아르": 12307,
-
-    "토로스": 92701,
-    "레오": 70314,
-    "벨라": 70315,
-    "파보": 70316,
-    "아라": 70319,
-    "오리온": 70320,
-    "리라": 70321
+    "뉴월드": 3000,
+    "글로벌": 1000,
+    "크라본": 70110
 
 };
 
@@ -104,30 +87,15 @@ const worlds = {
 const serverGroups = {
 
     "뉴월드": [
-        ["하제산", 32201],
-        ["추산도", 32202],
-        ["남달산", 32203]
+        ["뉴월드", 3000]
+    ],
+
+    "글로벌": [
+        ["글로벌", 1000]
     ],
 
     "크라본": [
         ["크라본", 70110]
-    ],
-
-    "글로벌": [
-        ["이브나", 12301],
-        ["이나이신기", 12302],
-        ["윤슬", 12303],
-        ["아라문해슬라", 12304],
-        ["다르쿠스", 12305],
-        ["미하제", 12306],
-        ["시아르", 12307],
-        ["토로스", 92701],
-        ["레오", 70314],
-        ["벨라", 70315],
-        ["파보", 70316],
-        ["아라", 70319],
-        ["오리온", 70320],
-        ["리라", 70321]
     ]
 
 };
@@ -160,12 +128,11 @@ function buildServerFilter() {
     serverFilter.innerHTML = "";
 
 
-    // 전체 서버
-
     const allOption =
         document.createElement("option");
 
-    allOption.value = "all";
+    allOption.value =
+        "all";
 
     allOption.textContent =
         "전체 서버";
@@ -174,8 +141,6 @@ function buildServerFilter() {
         allOption
     );
 
-
-    // 서버 그룹
 
     Object.entries(serverGroups).forEach(
         function ([groupName, servers]) {
@@ -739,8 +704,6 @@ function applyFiltersAndSort() {
         );
 
 
-    // 전투력
-
     if (
         sortFilter.value === "power"
     ) {
@@ -759,8 +722,6 @@ function applyFiltersAndSort() {
     }
 
 
-    // 레벨
-
     if (
         sortFilter.value === "level"
     ) {
@@ -778,8 +739,6 @@ function applyFiltersAndSort() {
 
     }
 
-
-    // 닉네임
 
     if (
         sortFilter.value === "nickname"
@@ -1833,8 +1792,6 @@ async function loadMarket() {
             await response.json();
 
 
-        // API 데이터 위치 자동 확인
-
         let data = [];
 
 
@@ -1959,8 +1916,6 @@ function displayMarket(data) {
         [...data];
 
 
-    // 아이템 이름
-
     const keyword =
         itemSearchInput
             ? itemSearchInput.value.trim()
@@ -1991,8 +1946,6 @@ function displayMarket(data) {
 
     }
 
-
-    // 등급
 
     if (
         itemTierFilter &&
@@ -2026,8 +1979,6 @@ function displayMarket(data) {
 
     }
 
-
-    // 정렬
 
     if (
         itemSortFilter
@@ -2433,3 +2384,4 @@ loadHistoryDates();
 
 
 loadAllRanking();
+```
