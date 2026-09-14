@@ -2,34 +2,33 @@ const http = require("http");
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
-const { URL } = require("url");
+const url = require("url");
 
 
-/* =========================================
-   기본 설정
-========================================= */
+// ======================================================
+// 기본 설정
+// ======================================================
 
-const PORT =
-    process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
 const ROW_PER_PAGE = 500;
+
 const BATCH_SIZE = 3;
 
 const DATA_DIR =
     path.join(__dirname, "data");
 
 
-/* =========================================
-   서버 목록
-========================================= */
+// ======================================================
+// 아스달 서버
+// ======================================================
 
-const worlds = {
+const WORLDS = {
 
     "크라본": 70110,
     "하제산": 32201,
     "추산도": 32202,
     "남달산": 32203,
-
     "이브나": 12301,
     "이나이신기": 12302,
     "윤슬": 12303,
@@ -37,103 +36,99 @@ const worlds = {
     "다르쿠스": 12305,
     "미하제": 12306,
     "시아르": 12307,
-
     "토로스": 92701,
-
     "레오": 70314,
     "벨라": 70315,
     "파보": 70316,
     "아라": 70319,
     "오리온": 70320,
     "리라": 70321
+
 };
 
 
-if (!fs.existsSync(DATA_DIR)) {
-
-    fs.mkdirSync(
-        DATA_DIR,
-        { recursive: true }
-    );
-}
-
-
-/* =========================================
-   유틸
-========================================= */
-
-function sleep(ms) {
-
-    return new Promise(
-        resolve => setTimeout(resolve, ms)
-    );
-}
+const WORLD_IDS = Object.fromEntries(
+    Object.entries(WORLDS).map(
+        ([name, id]) => [
+            String(id),
+            name
+        ]
+    )
+);
 
 
-/*
-    Render 서버 시간이 UTC일 수 있기 때문에
-    한국 시간 기준으로 날짜를 계산합니다.
-*/
+// ======================================================
+// 공통 함수
+// ======================================================
 
-function getTodayDate() {
+function numberValue(value) {
 
-    const now =
-        new Date();
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+        return 0;
+    }
 
-    const korea =
-        new Date(
-            now.toLocaleString(
-                "en-US",
-                {
-                    timeZone:
-                        "Asia/Seoul"
-                }
-            )
+    const number =
+        Number(
+            String(value)
+                .replace(/,/g, "")
         );
 
-    const year =
-        korea.getFullYear();
-
-    const month =
-        String(
-            korea.getMonth() + 1
-        ).padStart(2, "0");
-
-    const day =
-        String(
-            korea.getDate()
-        ).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
+    return Number.isFinite(number)
+        ? number
+        : 0;
 }
 
 
-function getHistoryFile(date) {
+function normalizeText(value) {
 
-    return path.join(
-        DATA_DIR,
-        `${date}.json`
-    );
-}
-
-
-function normalizeName(name) {
-
-    return String(name || "")
+    return String(
+        value ?? ""
+    )
         .trim()
         .toLowerCase();
+
 }
 
 
-/* =========================================
-   JSON 응답
-========================================= */
+function safeFileName(value) {
 
-function sendJson(
-    res,
-    statusCode,
-    data
-) {
+    return String(value)
+        .replace(/[^0-9\-]/g, "");
+
+}
+
+
+function getWorldName(worldId) {
+
+    return (
+        WORLD_IDS[
+            String(worldId)
+        ] || ""
+    );
+
+}
+
+
+function getWorldId(serverName) {
+
+    return (
+        WORLDS[
+            String(serverName || "")
+        ] || ""
+    );
+
+}
+
+
+function sendJson(res, data, statusCode = 200) {
+
+    const body =
+        JSON.stringify(data);
+
 
     res.writeHead(
         statusCode,
@@ -149,69 +144,213 @@ function sendJson(
         }
     );
 
-    res.end(
-        JSON.stringify(data)
-    );
+
+    res.end(body);
+
 }
 
 
-/* =========================================
-   넷마블 API
-========================================= */
+function sendText(
+    res,
+    text,
+    statusCode = 200
+) {
 
-function requestRanking(worldId) {
+    res.writeHead(
+        statusCode,
+        {
+            "Content-Type":
+                "text/plain; charset=utf-8"
+        }
+    );
+
+
+    res.end(text);
+
+}
+
+
+// ======================================================
+// 정적 파일
+// ======================================================
+
+const MIME_TYPES = {
+
+    ".html":
+        "text/html; charset=utf-8",
+
+    ".js":
+        "application/javascript; charset=utf-8",
+
+    ".css":
+        "text/css; charset=utf-8",
+
+    ".json":
+        "application/json; charset=utf-8",
+
+    ".png":
+        "image/png",
+
+    ".jpg":
+        "image/jpeg",
+
+    ".jpeg":
+        "image/jpeg",
+
+    ".gif":
+        "image/gif",
+
+    ".svg":
+        "image/svg+xml",
+
+    ".ico":
+        "image/x-icon"
+
+};
+
+
+function serveStaticFile(
+    req,
+    res,
+    pathname
+) {
+
+    let filePath =
+        pathname === "/"
+            ? path.join(
+                __dirname,
+                "index.html"
+            )
+            : path.join(
+                __dirname,
+                pathname
+            );
+
+
+    filePath =
+        path.normalize(
+            filePath
+        );
+
+
+    if (
+        !filePath.startsWith(
+            path.normalize(
+                __dirname
+            )
+        )
+    ) {
+
+        sendText(
+            res,
+            "Forbidden",
+            403
+        );
+
+        return;
+    }
+
+
+    fs.readFile(
+        filePath,
+        function (error, data) {
+
+            if (error) {
+
+                sendText(
+                    res,
+                    "Not Found",
+                    404
+                );
+
+                return;
+            }
+
+
+            const ext =
+                path.extname(
+                    filePath
+                )
+                .toLowerCase();
+
+
+            res.writeHead(
+                200,
+                {
+                    "Content-Type":
+                        MIME_TYPES[ext] ||
+                        "application/octet-stream"
+                }
+            );
+
+
+            res.end(data);
+
+        }
+    );
+
+}
+
+
+// ======================================================
+// Netmarble API
+// ======================================================
+
+function requestJson(
+    targetUrl
+) {
 
     return new Promise(
-        (resolve, reject) => {
+        function (resolve, reject) {
 
-            const apiUrl =
-                "https://arthdal.netmarble.com/front-api/ranking" +
-                "?lang=ko" +
-                "&page=1" +
-                "&row=" +
-                ROW_PER_PAGE +
-                "&type=power" +
-                "&worldId=" +
-                encodeURIComponent(worldId) +
-                "&name=";
-
-
-            console.log(
-                "[API]",
-                apiUrl
-            );
+            const parsed =
+                new URL(targetUrl);
 
 
             const request =
                 https.get(
-                    apiUrl,
                     {
+                        hostname:
+                            parsed.hostname,
+
+                        path:
+                            parsed.pathname +
+                            parsed.search,
+
                         headers: {
                             "User-Agent":
                                 "Mozilla/5.0",
+
                             "Accept":
                                 "application/json"
                         }
                     },
-                    response => {
+
+                    function (response) {
 
                         let body = "";
 
 
                         response.on(
                             "data",
-                            chunk => {
-                                body += chunk;
+                            function (chunk) {
+
+                                body +=
+                                    chunk.toString();
+
                             }
                         );
 
 
                         response.on(
                             "end",
-                            () => {
+                            function () {
 
                                 if (
-                                    response.statusCode !== 200
+                                    response.statusCode <
+                                        200 ||
+                                    response.statusCode >=
+                                        300
                                 ) {
 
                                     reject(
@@ -227,1144 +366,2200 @@ function requestRanking(worldId) {
 
                                 try {
 
-                                    const json =
-                                        JSON.parse(body);
-
-                                    resolve(json);
-
-                                } catch (error) {
-
-                                    reject(
-                                        new Error(
-                                            "JSON parse error"
+                                    resolve(
+                                        JSON.parse(
+                                            body
                                         )
                                     );
+
+                                } catch (
+                                    error
+                                ) {
+
+                                    reject(
+                                        error
+                                    );
+
                                 }
+
                             }
                         );
+
                     }
                 );
 
 
             request.on(
                 "error",
-                error => {
-                    reject(error);
+                reject
+            );
+
+
+            request.setTimeout(
+                15000,
+                function () {
+
+                    request.destroy();
+
+                    reject(
+                        new Error(
+                            "API timeout"
+                        )
+                    );
+
                 }
             );
+
         }
     );
+
 }
 
 
-/* =========================================
-   월드별 랭킹
-========================================= */
+// ======================================================
+// Netmarble 서버 랭킹
+// ======================================================
 
 async function getWorldRanking(
-    serverName,
     worldId
 ) {
 
-    console.log(
-        "[WORLD START]",
-        serverName,
-        worldId
-    );
+    const targetUrl =
+        "https://arthdal.netmarble.com/front-api/ranking" +
+        "?lang=ko" +
+        "&page=1" +
+        "&row=" +
+        ROW_PER_PAGE +
+        "&type=power" +
+        "&worldId=" +
+        encodeURIComponent(
+            worldId
+        ) +
+        "&name=";
 
 
-    try {
-
-        const response =
-            await requestRanking(
-                worldId
-            );
-
-
-        if (
-            !response ||
-            !response.resultData ||
-            !Array.isArray(
-                response.resultData.resData
-            )
-        ) {
-
-            console.log(
-                "[INVALID]",
-                serverName
-            );
-
-            return [];
-        }
-
-
-        const players =
-            response.resultData.resData;
-
-
-        const results =
-            players.map(
-                player => {
-
-                    return {
-                        ...player,
-
-                        server:
-                            serverName,
-
-                        worldId:
-                            worldId
-                    };
-                }
-            );
-
-
-        /*
-            같은 서버 + 같은 닉네임은 중복 제거.
-            다른 서버의 같은 닉네임은 절대 제거하지 않음.
-        */
-
-        const uniqueResults = [];
-
-        const duplicateKeys =
-            new Set();
-
-
-        results.forEach(
-            player => {
-
-                const key =
-                    normalizeName(
-                        player.server
-                    ) +
-                    "|" +
-                    normalizeName(
-                        player.name
-                    );
-
-
-                if (
-                    duplicateKeys.has(key)
-                ) {
-                    return;
-                }
-
-
-                duplicateKeys.add(key);
-
-                uniqueResults.push(
-                    player
-                );
-            }
+    const result =
+        await requestJson(
+            targetUrl
         );
 
 
-        uniqueResults.sort(
-            (a, b) => {
+    const resultData =
+        result.resultData ||
+        result.data ||
+        {};
 
-                return (
-                    (Number(b.power) || 0) -
-                    (Number(a.power) || 0)
-                );
-            }
+
+    const rows =
+        resultData.resData ||
+        resultData.data ||
+        result.resData ||
+        [];
+
+
+    const totalCount =
+        numberValue(
+            resultData.total_count ||
+            resultData.totalCount ||
+            result.total_count
         );
 
 
-        uniqueResults.forEach(
-            (player, index) => {
-
-                player.rank =
-                    index + 1;
-
-                player.totalRank =
-                    index + 1;
-            }
+    const serverName =
+        getWorldName(
+            worldId
         );
 
 
-        console.log(
-            "[WORLD DONE]",
-            serverName,
-            uniqueResults.length
-        );
-
-
-        return uniqueResults;
-
-
-    } catch (error) {
-
-        console.error(
-            "[WORLD ERROR]",
-            serverName,
-            error.message
-        );
+    if (
+        !Array.isArray(rows)
+    ) {
 
         return [];
+
     }
+
+
+    return rows.map(
+        function (player, index) {
+
+            return {
+
+                rank:
+                    numberValue(
+                        player.rank
+                    ) ||
+                    index + 1,
+
+                name:
+                    player.name || "",
+
+                level:
+                    numberValue(
+                        player.level
+                    ),
+
+                power:
+                    numberValue(
+                        player.power
+                    ),
+
+                main_job:
+                    player.main_job ||
+                    "",
+
+                guild_name:
+                    player.guild_name ||
+                    player.guildName ||
+                    "",
+
+                server:
+                    serverName,
+
+                worldId:
+                    String(worldId),
+
+                /*
+                 * totalRank는 실제 순위가 아니라
+                 * 해당 서버의 전체 랭킹 인원 수.
+                 */
+                totalRank:
+                    totalCount ||
+                    rows.length
+
+            };
+
+        }
+    );
+
 }
 
 
-/* =========================================
-   전체 랭킹
-========================================= */
+// ======================================================
+// 전체 서버 랭킹
+// ======================================================
 
 async function getAllRanking() {
 
-    let results = [];
+    const worldEntries =
+        Object.entries(
+            WORLDS
+        );
 
-    const entries =
-        Object.entries(worlds);
+
+    const result = [];
 
 
     for (
         let i = 0;
-        i < entries.length;
+        i < worldEntries.length;
         i += BATCH_SIZE
     ) {
 
         const batch =
-            entries.slice(
+            worldEntries.slice(
                 i,
                 i + BATCH_SIZE
             );
 
 
-        console.log(
-            "[BATCH]",
-            `${i + 1} ~ ${Math.min(
-                i + BATCH_SIZE,
-                entries.length
-            )}`
-        );
-
-
-        const batchResults =
+        const batchResult =
             await Promise.all(
                 batch.map(
-                    ([serverName, worldId]) => {
+                    async function (
+                        [serverName, worldId]
+                    ) {
 
-                        return getWorldRanking(
-                            serverName,
-                            worldId
-                        );
+                        try {
+
+                            return await getWorldRanking(
+                                worldId
+                            );
+
+                        } catch (
+                            error
+                        ) {
+
+                            console.error(
+                                "랭킹 오류:",
+                                serverName,
+                                error.message
+                            );
+
+                            return [];
+
+                        }
+
                     }
                 )
             );
 
 
-        batchResults.forEach(
-            serverData => {
+        batchResult.forEach(
+            function (rows) {
 
-                results =
-                    results.concat(
-                        serverData
-                    );
+                result.push(
+                    ...rows
+                );
+
             }
         );
 
-
-        await sleep(300);
     }
 
 
     /*
-        전체 중복 제거.
-        서버 + 닉네임을 기준으로 하기 때문에
-        다른 서버의 동명이인은 정상적으로 남습니다.
-    */
+     * 전체 서버 전투력 기준 정렬
+     */
 
-    const uniqueResults = [];
+    result.sort(
+        function (a, b) {
 
-    const duplicateKeys =
-        new Set();
+            if (
+                b.power !== a.power
+            ) {
 
-
-    results.forEach(
-        player => {
-
-            const key =
-                normalizeName(
-                    player.server
-                ) +
-                "|" +
-                normalizeName(
-                    player.name
+                return (
+                    b.power -
+                    a.power
                 );
 
-
-            if (
-                duplicateKeys.has(key)
-            ) {
-                return;
             }
 
-
-            duplicateKeys.add(key);
-
-            uniqueResults.push(
-                player
-            );
-        }
-    );
-
-
-    uniqueResults.sort(
-        (a, b) => {
 
             return (
-                (Number(b.power) || 0) -
-                (Number(a.power) || 0)
+                b.level -
+                a.level
             );
+
         }
     );
 
 
-    uniqueResults.forEach(
-        (player, index) => {
+    /*
+     * 전체 서버 순위는
+     * 여기서 새롭게 부여.
+     */
 
-            player.totalRank =
+    result.forEach(
+        function (player, index) {
+
+            player.rank =
                 index + 1;
+
         }
     );
 
 
-    console.log(
-        "[ALL RANKING]",
-        uniqueResults.length
-    );
+    return result;
 
-
-    return uniqueResults;
 }
 
 
-/* =========================================
-   일일 랭킹 저장
-========================================= */
-
-function saveDailyRanking(
-    ranking
-) {
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const today =
-                getTodayDate();
-
-            const filePath =
-                getHistoryFile(today);
-
-
-            /*
-                이미 해당 날짜의 파일이 있다면
-                기존 8월/9월 기록을 덮어쓰지 않습니다.
-            */
-
-            if (
-                fs.existsSync(filePath)
-            ) {
-
-                resolve(false);
-
-                return;
-            }
-
-
-            const saveData = {
-
-                date:
-                    today,
-
-                savedAt:
-                    new Date().toISOString(),
-
-                total:
-                    ranking.length,
-
-                data:
-                    ranking
-            };
-
-
-            fs.writeFile(
-                filePath,
-
-                JSON.stringify(
-                    saveData,
-                    null,
-                    2
-                ),
-
-                "utf8",
-
-                error => {
-
-                    if (error) {
-
-                        reject(error);
-
-                        return;
-                    }
-
-
-                    console.log(
-                        "[SAVE]",
-                        today,
-                        ranking.length
-                    );
-
-
-                    resolve(true);
-                }
-            );
-        }
-    );
-}
-
-
-/* =========================================
-   과거 날짜
-========================================= */
+// ======================================================
+// 과거 데이터 읽기
+// ======================================================
 
 function getHistoryDates() {
 
     if (
-        !fs.existsSync(DATA_DIR)
+        !fs.existsSync(
+            DATA_DIR
+        )
     ) {
 
         return [];
+
     }
 
 
-    return fs
-        .readdirSync(DATA_DIR)
-
+    return fs.readdirSync(
+        DATA_DIR
+    )
         .filter(
-            file =>
-                /^\d{4}-\d{2}-\d{2}\.json$/.test(file)
-        )
+            function (fileName) {
 
+                return (
+                    /^\d{4}-\d{2}-\d{2}\.json$/
+                        .test(
+                            fileName
+                        )
+                );
+
+            }
+        )
         .map(
-            file =>
-                file.replace(
-                    ".json",
-                    ""
-                )
-        )
+            function (fileName) {
 
-        .sort(
-            (a, b) =>
-                b.localeCompare(a)
-        );
+                return fileName
+                    .replace(
+                        ".json",
+                        ""
+                    );
+
+            }
+        )
+        .sort();
+
 }
 
 
-/* =========================================
-   과거 랭킹
-========================================= */
+function normalizeHistoryRows(
+    raw
+) {
 
-function getHistoryRanking(date) {
+    /*
+     * 과거 JSON 형식이
+     *
+     * [ ... ]
+     *
+     * 또는
+     *
+     * { data: [...] }
+     *
+     * 둘 중 어느 것이든 처리.
+     */
 
     if (
-        !/^\d{4}-\d{2}-\d{2}$/.test(date)
+        Array.isArray(raw)
     ) {
 
-        return null;
+        return raw;
+
     }
 
 
-    const filePath =
-        getHistoryFile(date);
+    if (
+        raw &&
+        Array.isArray(raw.data)
+    ) {
+
+        return raw.data;
+
+    }
 
 
     if (
-        !fs.existsSync(filePath)
+        raw &&
+        raw.resultData &&
+        Array.isArray(
+            raw.resultData.resData
+        )
     ) {
 
-        return null;
+        return raw.resultData.resData;
+
+    }
+
+
+    return [];
+
+}
+
+
+function readHistoryDate(
+    date
+) {
+
+    const fileName =
+        safeFileName(
+            date
+        ) +
+        ".json";
+
+
+    const filePath =
+        path.join(
+            DATA_DIR,
+            fileName
+        );
+
+
+    if (
+        !fs.existsSync(
+            filePath
+        )
+    ) {
+
+        return [];
+
     }
 
 
     try {
 
-        const content =
-            fs.readFileSync(
-                filePath,
-                "utf8"
+        const raw =
+            JSON.parse(
+                fs.readFileSync(
+                    filePath,
+                    "utf8"
+                )
             );
 
 
-        return JSON.parse(
-            content
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "[HISTORY ERROR]",
-            date,
-            error.message
-        );
-
-        return null;
-    }
-}
-
-
-/* =========================================
-   과거 데이터 배열 추출
-========================================= */
-
-function getHistoryPlayers(data) {
-
-    if (!data) {
-        return [];
-    }
-
-
-    if (
-        Array.isArray(data)
-    ) {
-
-        return data;
-    }
-
-
-    if (
-        Array.isArray(data.data)
-    ) {
-
-        return data.data;
-    }
-
-
-    if (
-        data.resultData &&
-        Array.isArray(
-            data.resultData.resData
+        return normalizeHistoryRows(
+            raw
         )
-    ) {
-
-        return data.resultData.resData;
-    }
-
-
-    return [];
-}
-
-
-/* =========================================
-   추적 후보 찾기
-========================================= */
-
-function findTrackingCandidates(
-    name
-) {
-
-    const target =
-        normalizeName(name);
-
-    const dates =
-        getHistoryDates();
-
-    const candidates =
-        new Map();
-
-
-    for (
-        const date of dates
-    ) {
-
-        const data =
-            getHistoryRanking(date);
-
-        const players =
-            getHistoryPlayers(data);
-
-
-        players.forEach(
-            player => {
-
-                if (
-                    normalizeName(
-                        player.name
-                    ) !== target
+            .map(
+                function (
+                    player,
+                    index
                 ) {
 
-                    return;
-                }
+                    const server =
+                        player.server ||
+                        getWorldName(
+                            player.worldId
+                        );
 
 
-                const server =
-                    String(
-                        player.server || ""
-                    );
+                    return {
 
-                const worldId =
-                    String(
-                        player.worldId || ""
-                    );
+                        rank:
+                            numberValue(
+                                player.rank
+                            ) ||
+                            index + 1,
 
-
-                const key =
-                    `${worldId}|${normalizeName(server)}|${target}`;
-
-
-                if (
-                    candidates.has(key)
-                ) {
-
-                    return;
-                }
-
-
-                candidates.set(
-                    key,
-                    {
                         name:
-                            player.name,
+                            player.name ||
+                            "",
+
+                        level:
+                            numberValue(
+                                player.level
+                            ),
+
+                        power:
+                            numberValue(
+                                player.power
+                            ),
+
+                        main_job:
+                            player.main_job ||
+                            "",
+
+                        guild_name:
+                            player.guild_name ||
+                            player.guildName ||
+                            "",
 
                         server:
                             server,
 
                         worldId:
-                            worldId,
+                            String(
+                                player.worldId ||
+                                getWorldId(
+                                    server
+                                ) ||
+                                ""
+                            ),
 
-                        guild_name:
-                            player.guild_name ||
-                            "",
+                        totalRank:
+                            numberValue(
+                                player.totalRank
+                            )
 
-                        firstDate:
-                            date
-                    }
-                );
-            }
+                    };
+
+                }
+            );
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "히스토리 읽기 오류:",
+            date,
+            error.message
         );
+
+
+        return [];
+
     }
 
-
-    return [
-        ...candidates.values()
-    ];
 }
 
 
-/* =========================================
-   플레이어 추적
-========================================= */
+// ======================================================
+// 전체 과거 데이터
+// ======================================================
 
-function getPlayerTracking(
-    name,
-    worldId = null
+function loadAllHistory() {
+
+    const dates =
+        getHistoryDates();
+
+
+    const result = [];
+
+
+    dates.forEach(
+        function (date) {
+
+            const rows =
+                readHistoryDate(
+                    date
+                );
+
+
+            rows.forEach(
+                function (player) {
+
+                    result.push({
+
+                        ...player,
+
+                        date
+
+                    });
+
+                }
+            );
+
+        }
+    );
+
+
+    return {
+        dates,
+        rows: result
+    };
+
+}
+
+
+// ======================================================
+// 플레이어 비교용 점수
+// ======================================================
+
+function clamp(
+    value,
+    min,
+    max
+) {
+
+    return Math.max(
+        min,
+        Math.min(
+            max,
+            value
+        )
+    );
+
+}
+
+
+/*
+ * 두 기록이 같은 캐릭터일 가능성을 계산한다.
+ *
+ * 핵심:
+ *
+ * 같은 닉네임이라고 무조건 같은 사람이 아니다.
+ *
+ * 서버 / 연맹 / 직업 / 레벨 / 전투력 / 순위 등의
+ * 연속성을 종합해서 점수를 만든다.
+ */
+
+function calculateIdentityScore(
+    current,
+    previous,
+    options = {}
 ) {
 
     if (
-        !name ||
-        !String(name).trim()
+        !current ||
+        !previous
     ) {
 
-        return null;
+        return {
+            score: -999,
+            reasons: []
+        };
+
     }
 
 
+    let score = 0;
+
+    const reasons = [];
+
+
+    const sameName =
+        normalizeText(
+            current.name
+        ) ===
+        normalizeText(
+            previous.name
+        );
+
+
+    const sameServer =
+        String(
+            current.worldId || ""
+        ) ===
+        String(
+            previous.worldId || ""
+        );
+
+
+    const sameGuild =
+        normalizeText(
+            current.guild_name
+        ) ===
+        normalizeText(
+            previous.guild_name
+        );
+
+
+    const sameJob =
+        normalizeText(
+            current.main_job
+        ) ===
+        normalizeText(
+            previous.main_job
+        );
+
+
+    const currentLevel =
+        numberValue(
+            current.level
+        );
+
+
+    const previousLevel =
+        numberValue(
+            previous.level
+        );
+
+
+    const levelDifference =
+        Math.abs(
+            currentLevel -
+            previousLevel
+        );
+
+
+    const currentPower =
+        numberValue(
+            current.power
+        );
+
+
+    const previousPower =
+        numberValue(
+            previous.power
+        );
+
+
+    const powerDifference =
+        Math.abs(
+            currentPower -
+            previousPower
+        );
+
+
+    const powerPercent =
+        previousPower > 0
+            ? powerDifference /
+              previousPower
+            : 999;
+
+
+    const currentRank =
+        numberValue(
+            current.rank
+        );
+
+
+    const previousRank =
+        numberValue(
+            previous.rank
+        );
+
+
+    const rankDifference =
+        Math.abs(
+            currentRank -
+            previousRank
+        );
+
+
+    // ------------------------------------------
+    // 닉네임
+    // ------------------------------------------
+
+    if (sameName) {
+
+        score += 45;
+
+        reasons.push(
+            "동일 닉네임 +45"
+        );
+
+    } else {
+
+        /*
+         * 닉네임 변경은 가능하지만
+         * 동일 닉네임보다 훨씬 낮게 시작한다.
+         */
+
+        score += 0;
+
+        reasons.push(
+            "닉네임 변경 후보"
+        );
+
+    }
+
+
+    // ------------------------------------------
+    // 서버
+    // ------------------------------------------
+
+    if (sameServer) {
+
+        score += 12;
+
+        reasons.push(
+            "동일 서버 +12"
+        );
+
+    } else {
+
+        /*
+         * 서버가 달라졌다고 감점하지 않는다.
+         *
+         * 서버 이전을 추적해야 하기 때문.
+         */
+
+        score += 0;
+
+    }
+
+
+    // ------------------------------------------
+    // 연맹
+    // ------------------------------------------
+
+    if (
+        current.guild_name &&
+        previous.guild_name &&
+        sameGuild
+    ) {
+
+        score += 14;
+
+        reasons.push(
+            "동일 연맹 +14"
+        );
+
+    }
+
+
+    // ------------------------------------------
+    // 직업
+    // ------------------------------------------
+
+    if (
+        current.main_job &&
+        previous.main_job &&
+        sameJob
+    ) {
+
+        score += 12;
+
+        reasons.push(
+            "동일 직업 +12"
+        );
+
+    }
+
+
+    // ------------------------------------------
+    // 레벨
+    // ------------------------------------------
+
+    if (
+        levelDifference === 0
+    ) {
+
+        score += 8;
+
+        reasons.push(
+            "레벨 동일 +8"
+        );
+
+    } else if (
+        levelDifference <= 1
+    ) {
+
+        score += 8;
+
+        reasons.push(
+            "레벨 차이 1 +8"
+        );
+
+    } else if (
+        levelDifference <= 3
+    ) {
+
+        score += 6;
+
+        reasons.push(
+            "레벨 차이 2~3 +6"
+        );
+
+    } else if (
+        levelDifference <= 5
+    ) {
+
+        score += 3;
+
+        reasons.push(
+            "레벨 차이 4~5 +3"
+        );
+
+    } else if (
+        levelDifference <= 10
+    ) {
+
+        score -= 5;
+
+        reasons.push(
+            "레벨 차이 큼 -5"
+        );
+
+    } else {
+
+        score -= 20;
+
+        reasons.push(
+            "레벨 차이 매우 큼 -20"
+        );
+
+    }
+
+
+    // ------------------------------------------
+    // 전투력
+    // ------------------------------------------
+
+    if (
+        powerDifference === 0
+    ) {
+
+        score += 8;
+
+        reasons.push(
+            "전투력 동일 +8"
+        );
+
+    } else if (
+        powerPercent <= 0.03
+    ) {
+
+        score += 8;
+
+        reasons.push(
+            "전투력 변화 3% 이내 +8"
+        );
+
+    } else if (
+        powerPercent <= 0.10
+    ) {
+
+        score += 6;
+
+        reasons.push(
+            "전투력 변화 10% 이내 +6"
+        );
+
+    } else if (
+        powerPercent <= 0.25
+    ) {
+
+        score += 3;
+
+        reasons.push(
+            "전투력 변화 25% 이내 +3"
+        );
+
+    } else if (
+        powerPercent <= 0.50
+    ) {
+
+        score -= 5;
+
+        reasons.push(
+            "전투력 변화 큼 -5"
+        );
+
+    } else {
+
+        score -= 12;
+
+        reasons.push(
+            "전투력 변화 매우 큼 -12"
+        );
+
+    }
+
+
+    // ------------------------------------------
+    // 순위
+    // ------------------------------------------
+
+    if (
+        currentRank > 0 &&
+        previousRank > 0
+    ) {
+
+        if (
+            rankDifference <= 10
+        ) {
+
+            score += 5;
+
+        } else if (
+            rankDifference <= 100
+        ) {
+
+            score += 3;
+
+        } else if (
+            rankDifference <= 1000
+        ) {
+
+            score += 1;
+
+        } else if (
+            rankDifference <= 5000
+        ) {
+
+            score -= 2;
+
+        } else {
+
+            score -= 5;
+
+        }
+
+    }
+
+
+    // ------------------------------------------
+    // 서버 이전 보정
+    // ------------------------------------------
+
+    if (
+        !sameServer &&
+        sameJob &&
+        levelDifference <= 3 &&
+        powerPercent <= 0.25
+    ) {
+
+        score += 8;
+
+        reasons.push(
+            "서버 이전 가능성 +8"
+        );
+
+    }
+
+
+    // ------------------------------------------
+    // 연맹 변경 보정
+    // ------------------------------------------
+
+    if (
+        !sameGuild &&
+        sameJob &&
+        levelDifference <= 3 &&
+        powerPercent <= 0.25
+    ) {
+
+        score += 6;
+
+        reasons.push(
+            "연맹 변경 가능성 +6"
+        );
+
+    }
+
+
+    // ------------------------------------------
+    // 닉네임 변경 보정
+    // ------------------------------------------
+
+    if (
+        !sameName &&
+        sameJob &&
+        levelDifference <= 2 &&
+        powerPercent <= 0.15
+    ) {
+
+        score += 15;
+
+        reasons.push(
+            "닉네임 변경 강한 후보 +15"
+        );
+
+    }
+
+
+    return {
+
+        score: Math.round(
+            score
+        ),
+
+        reasons
+
+    };
+
+}
+
+
+// ======================================================
+// 후보 생성
+// ======================================================
+
+function getCandidatesForDate(
+    rows,
+    target,
+    allowNicknameChange = true
+) {
+
     const targetName =
-        String(name).trim();
+        normalizeText(
+            target.name
+        );
 
-    const target =
-        normalizeName(targetName);
+
+    const candidates = [];
 
 
-    const targetWorld =
-        worldId &&
-        String(worldId) !== "all"
-            ? String(worldId)
-            : null;
+    rows.forEach(
+        function (player) {
+
+            const candidateName =
+                normalizeText(
+                    player.name
+                );
+
+
+            /*
+             * 1순위:
+             * 동일 닉네임
+             */
+
+            if (
+                candidateName ===
+                targetName
+            ) {
+
+                candidates.push({
+                    player,
+                    type: "same-name"
+                });
+
+                return;
+            }
+
+
+            /*
+             * 2순위:
+             * 닉네임 변경 후보
+             *
+             * 모든 캐릭터를 무조건 후보로 넣으면
+             * 잘못된 연결 가능성이 너무 높기 때문에
+             * 직업 / 레벨 / 전투력 기준으로
+             * 1차 필터링한다.
+             */
+
+            if (
+                allowNicknameChange
+            ) {
+
+                const score =
+                    calculateIdentityScore(
+                        target,
+                        player
+                    );
+
+
+                if (
+                    score.score >= 55
+                ) {
+
+                    candidates.push({
+                        player,
+                        type: "nickname-change"
+                    });
+
+                }
+
+            }
+
+        }
+    );
+
+
+    return candidates;
+
+}
+
+
+// ======================================================
+// 날짜별 최적 후보 선택
+// ======================================================
+
+function chooseBestCandidate(
+    currentRecord,
+    previousRows,
+    options = {}
+) {
+
+    const candidates =
+        getCandidatesForDate(
+            previousRows,
+            currentRecord,
+            options.allowNicknameChange !== false
+        );
+
+
+    if (
+        candidates.length === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    const scored =
+        candidates.map(
+            function (candidate) {
+
+                const identity =
+                    calculateIdentityScore(
+                        currentRecord,
+                        candidate.player
+                    );
+
+
+                let finalScore =
+                    identity.score;
+
+
+                /*
+                 * 동일 닉네임을 기본적으로 우선한다.
+                 */
+
+                if (
+                    candidate.type ===
+                    "same-name"
+                ) {
+
+                    finalScore += 15;
+
+                }
+
+
+                /*
+                 * 닉네임 변경 후보는
+                 * 훨씬 높은 점수를 요구한다.
+                 */
+
+                if (
+                    candidate.type ===
+                    "nickname-change"
+                ) {
+
+                    finalScore -= 15;
+
+                }
+
+
+                return {
+
+                    ...candidate,
+
+                    score:
+                        finalScore,
+
+                    reasons:
+                        identity.reasons
+
+                };
+
+            }
+        );
+
+
+    scored.sort(
+        function (a, b) {
+
+            return (
+                b.score -
+                a.score
+            );
+
+        }
+    );
+
+
+    const best =
+        scored[0];
+
+
+    const second =
+        scored[1];
+
+
+    /*
+     * 동명이인이 있을 때
+     * 점수 차이가 충분하지 않으면
+     * 억지로 선택하지 않는다.
+     */
+
+    if (
+        second &&
+        best.type ===
+            "same-name" &&
+        best.score -
+            second.score <
+            5
+    ) {
+
+        /*
+         * 그래도 서버/직업/레벨/전투력이
+         * 명확하게 맞는 경우는 허용.
+         */
+
+        const bestIdentity =
+            calculateIdentityScore(
+                currentRecord,
+                best.player
+            );
+
+
+        if (
+            bestIdentity.score <
+            65
+        ) {
+
+            return null;
+
+        }
+
+    }
+
+
+    /*
+     * 동일 닉네임 후보는
+     * 최소 점수 50 이상.
+     */
+
+    if (
+        best.type ===
+            "same-name" &&
+        best.score < 50
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+     * 닉네임 변경 후보는
+     * 최소 70점 이상만 허용.
+     */
+
+    if (
+        best.type ===
+            "nickname-change" &&
+        best.score < 70
+    ) {
+
+        return null;
+
+    }
+
+
+    return best;
+
+}
+
+
+// ======================================================
+// 플레이어 기록 추적
+// ======================================================
+
+function trackPlayer(
+    currentPlayer
+) {
+
+    const allHistory =
+        loadAllHistory();
 
 
     const dates =
-        getHistoryDates()
-            .sort(
-                (a, b) =>
-                    a.localeCompare(b)
+        allHistory.dates;
+
+
+    /*
+     * 날짜별 데이터를 빠르게 사용하기 위해
+     * Map 생성.
+     */
+
+    const rowsByDate =
+        new Map();
+
+
+    dates.forEach(
+        function (date) {
+
+            rowsByDate.set(
+                date,
+                readHistoryDate(
+                    date
+                )
             );
+
+        }
+    );
+
+
+    /*
+     * 가장 최근 기록부터 거꾸로 연결한다.
+     *
+     * 현재 캐릭터
+     * ↓
+     * 9월 14일
+     * ↓
+     * 9월 13일
+     * ↓
+     * ...
+     * ↓
+     * 8월 21일
+     */
+
+    let current =
+        {
+            ...currentPlayer
+        };
 
 
     const history = [];
 
 
+    const selectedCandidates = [];
+
+
+    /*
+     * 현재 API 기록을 기준점으로 넣는다.
+     */
+
+    history.push({
+
+        date: "현재",
+
+        ...current
+
+    });
+
+
+    /*
+     * 가장 최신 과거 날짜부터 검색.
+     */
+
     for (
-        const date of dates
+        let dateIndex =
+            dates.length - 1;
+
+        dateIndex >= 0;
+
+        dateIndex--
     ) {
 
-        const data =
-            getHistoryRanking(date);
+        const date =
+            dates[dateIndex];
 
-        const players =
-            getHistoryPlayers(data);
+
+        const rows =
+            rowsByDate.get(
+                date
+            ) || [];
 
 
         /*
-            동명이인 처리 핵심.
+         * 같은 날짜의 동일 캐릭터가
+         * 현재와 중복되는 것을 막는다.
+         *
+         * 현재와 바로 전날/최근 기록을
+         * 연결하는 것은 허용.
+         */
 
-            worldId가 지정되어 있으면
-            반드시 해당 서버의 기록만 가져옵니다.
-        */
-
-        const matches =
-            players.filter(
-                player => {
-
-                    const sameName =
-                        normalizeName(
-                            player.name
-                        ) === target;
-
-
-                    if (!sameName) {
-                        return false;
-                    }
-
-
-                    if (!targetWorld) {
-                        return true;
-                    }
-
-
-                    return String(
-                        player.worldId || ""
-                    ) === targetWorld;
+        const best =
+            chooseBestCandidate(
+                current,
+                rows,
+                {
+                    allowNicknameChange:
+                        true
                 }
             );
 
 
-        if (
-            matches.length === 0
-        ) {
+        if (!best) {
 
             continue;
+
         }
+
+
+        const selected =
+            {
+                ...best.player,
+
+                date
+
+            };
 
 
         /*
-            worldId를 지정하지 않은 경우
-            같은 날짜에 동명이인이 여러 명이면
-            첫 번째 사람을 임의로 선택하지 않습니다.
-        */
-
-        let player;
-
+         * 이미 같은 날짜가 들어갔다면
+         * 중복 방지.
+         */
 
         if (
-            !targetWorld &&
-            matches.length > 1
+            history.some(
+                function (item) {
+
+                    return (
+                        item.date ===
+                        date
+                    );
+
+                }
+            )
         ) {
 
             continue;
+
         }
 
 
-        player =
-            matches[0];
+        history.push(
+            selected
+        );
 
 
-        history.push({
+        selectedCandidates.push({
 
-            date:
-                date,
+            date,
+
+            score:
+                best.score,
+
+            type:
+                best.type,
 
             name:
-                player.name,
+                best.player.name,
 
             server:
-                player.server || "",
+                best.player.server,
 
             worldId:
-                player.worldId || "",
+                best.player.worldId,
 
             level:
-                Number(player.level) || 0,
+                best.player.level,
 
             power:
-                Number(player.power) || 0,
+                best.player.power,
 
             rank:
-                Number(player.rank) || 0,
-
-            totalRank:
-                Number(player.totalRank) || 0,
-
-            main_job:
-                player.main_job || "",
+                best.player.rank,
 
             guild_name:
-                player.guild_name || ""
+                best.player.guild_name,
+
+            reasons:
+                best.reasons
+
         });
+
+
+        /*
+         * 다음 날짜를 찾을 때는
+         * 방금 선택된 과거 기록을 기준으로 한다.
+         *
+         * 이것이 중요하다.
+         *
+         * 현재와 8월 기록을 직접 비교하는 것이 아니라
+         *
+         * 현재
+         * ↓
+         * 9/14
+         * ↓
+         * 8/21
+         *
+         * 식으로 체인을 만든다.
+         */
+
+        current =
+            {
+                ...best.player
+            };
+
     }
 
 
     /*
-        같은 이름 + 서버의 기록이 없으면
-        찾지 못한 것으로 처리.
-    */
+     * 오래된 날짜 → 최신 날짜 순으로
+     * 다시 정렬.
+     */
 
-    if (
-        history.length === 0
-    ) {
+    history.sort(
+        function (a, b) {
 
-        /*
-            worldId를 지정하지 않았을 때
-            후보가 여러 개라면 후보를 반환합니다.
-        */
-
-        if (!targetWorld) {
-
-            const candidates =
-                findTrackingCandidates(
-                    targetName
-                );
+            if (
+                a.date === "현재"
+            ) {
+                return -1;
+            }
 
 
             if (
-                candidates.length > 0
+                b.date === "현재"
             ) {
-
-                return {
-                    name:
-                        targetName,
-
-                    found:
-                        false,
-
-                    candidates:
-                        candidates,
-
-                    history:
-                        [],
-
-                    moves:
-                        [],
-
-                    guildMoves:
-                        []
-                };
+                return 1;
             }
+
+
+            return (
+                b.date.localeCompare(
+                    a.date
+                )
+            );
+
         }
+    );
 
 
-        return {
-            name:
-                targetName,
+    // ==================================================
+    // 변화 기록 계산
+    // ==================================================
 
-            found:
-                false,
+    const serverMoves = [];
 
-            candidates:
-                [],
-
-            history:
-                [],
-
-            moves:
-                [],
-
-            guildMoves:
-                []
-        };
-    }
-
-
-    const moves = [];
     const guildMoves = [];
+
+    const nicknameChanges = [];
 
 
     for (
-        let i = 1;
-        i < history.length;
+        let i = 0;
+
+        i <
+        history.length - 1;
+
         i++
     ) {
-
-        const previous =
-            history[i - 1];
 
         const current =
             history[i];
 
+        const previous =
+            history[i + 1];
+
 
         /*
-            서버 이전
-        */
+         * 서버 이동
+         */
 
         if (
-            previous.server &&
             current.server &&
-            previous.server !==
-                current.server
+            previous.server &&
+            current.server !==
+                previous.server
         ) {
 
-            moves.push({
+            const identity =
+                calculateIdentityScore(
+                    current,
+                    previous
+                );
 
-                fromDate:
-                    previous.date,
 
-                toDate:
+            serverMoves.push({
+
+                date:
                     current.date,
 
-                fromServer:
+                from:
                     previous.server,
 
-                toServer:
+                to:
                     current.server,
 
                 fromWorldId:
                     previous.worldId,
 
                 toWorldId:
-                    current.worldId
+                    current.worldId,
+
+                score:
+                    identity.score
+
             });
+
         }
 
 
         /*
-            연맹 변경
-        */
-
-        const previousGuild =
-            previous.guild_name ||
-            "";
+         * 연맹 변경
+         */
 
         const currentGuild =
             current.guild_name ||
             "";
 
+        const previousGuild =
+            previous.guild_name ||
+            "";
+
 
         if (
-            previousGuild !==
-            currentGuild
+            currentGuild !==
+                previousGuild
         ) {
 
             guildMoves.push({
 
-                fromDate:
-                    previous.date,
-
-                toDate:
+                date:
                     current.date,
 
-                fromGuild:
+                from:
                     previousGuild ||
-                    "무소속",
+                    "(없음)",
 
-                toGuild:
+                to:
                     currentGuild ||
-                    "무소속",
+                    "(없음)",
 
                 server:
-                    current.server ||
-                    previous.server ||
-                    "",
+                    current.server || ""
 
-                worldId:
-                    current.worldId ||
-                    previous.worldId ||
-                    ""
             });
+
         }
+
+
+        /*
+         * 닉네임 변경
+         */
+
+        if (
+            normalizeText(
+                current.name
+            ) !==
+            normalizeText(
+                previous.name
+            )
+        ) {
+
+            const identity =
+                calculateIdentityScore(
+                    current,
+                    previous
+                );
+
+
+            /*
+             * 실제 닉네임 변경으로 판단된
+             * 경우만 기록.
+             */
+
+            if (
+                identity.score >= 65
+            ) {
+
+                nicknameChanges.push({
+
+                    date:
+                        current.date,
+
+                    from:
+                        previous.name,
+
+                    to:
+                        current.name,
+
+                    score:
+                        identity.score
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * 추적 신뢰도 계산
+     */
+
+    let trackingConfidence =
+        0;
+
+
+    if (
+        selectedCandidates.length > 0
+    ) {
+
+        const scores =
+            selectedCandidates.map(
+                function (item) {
+
+                    return item.score;
+
+                }
+            );
+
+
+        const average =
+            scores.reduce(
+                function (sum, value) {
+
+                    return (
+                        sum +
+                        value
+                    );
+
+                },
+                0
+            ) /
+            scores.length;
+
+
+        trackingConfidence =
+            Math.round(
+                clamp(
+                    average,
+                    0,
+                    100
+                )
+            );
+
+    }
+
+
+    let trackingConfidenceLevel =
+        "낮음";
+
+
+    if (
+        trackingConfidence >= 85
+    ) {
+
+        trackingConfidenceLevel =
+            "매우 높음";
+
+    } else if (
+        trackingConfidence >= 70
+    ) {
+
+        trackingConfidenceLevel =
+            "높음";
+
+    } else if (
+        trackingConfidence >= 55
+    ) {
+
+        trackingConfidenceLevel =
+            "보통";
+
+    }
+
+
+    const trackingReasons = [];
+
+
+    if (
+        history.length > 1
+    ) {
+
+        trackingReasons.push(
+            `과거 ${history.length - 1}개 기록 연결`
+        );
+
+    }
+
+
+    if (
+        serverMoves.length > 0
+    ) {
+
+        trackingReasons.push(
+            `서버 이동 ${serverMoves.length}회`
+        );
+
+    }
+
+
+    if (
+        guildMoves.length > 0
+    ) {
+
+        trackingReasons.push(
+            `연맹 변경 ${guildMoves.length}회`
+        );
+
+    }
+
+
+    if (
+        nicknameChanges.length > 0
+    ) {
+
+        trackingReasons.push(
+            `닉네임 변경 ${nicknameChanges.length}회`
+        );
+
     }
 
 
     return {
 
-        name:
-            history[history.length - 1]
-                .name,
-
         found:
-            true,
+            history.length > 0,
 
-        candidates:
-            [],
-
-        history:
-            history,
+        history,
 
         moves:
-            moves,
+            serverMoves,
 
-        guildMoves:
-            guildMoves
+        guildMoves,
+
+        nicknameChanges,
+
+        trackingConfidence,
+
+        trackingConfidenceLevel,
+
+        trackingReasons,
+
+        selectedCandidates
+
     };
+
 }
 
 
-/* =========================================
-   정적 파일
-========================================= */
+// ======================================================
+// 동명이인 후보 조회
+// ======================================================
 
-function serveStatic(
-    req,
-    res
+function getPlayerCandidates(
+    currentPlayer
 ) {
 
-    let pathname;
-
-    try {
-
-        const requestUrl =
-            new URL(
-                req.url,
-                "http://" +
-                req.headers.host
-            );
-
-        pathname =
-            decodeURIComponent(
-                requestUrl.pathname
-            );
-
-    } catch (error) {
-
-        res.writeHead(400);
-
-        res.end("Bad Request");
-
-        return;
-    }
+    const {
+        rows
+    } =
+        loadAllHistory();
 
 
-    if (
-        pathname === "/"
-    ) {
-
-        pathname =
-            "/index.html";
-    }
+    const candidates = [];
 
 
-    /*
-        보안상 ../ 경로 차단
-    */
+    rows.forEach(
+        function (record) {
 
-    if (
-        pathname.includes("..")
-    ) {
-
-        res.writeHead(403);
-
-        res.end("Forbidden");
-
-        return;
-    }
-
-
-    const filePath =
-        path.join(
-            __dirname,
-            pathname
-        );
-
-
-    const ext =
-        path.extname(
-            filePath
-        ).toLowerCase();
-
-
-    const contentTypes = {
-
-        ".html":
-            "text/html; charset=utf-8",
-
-        ".js":
-            "application/javascript; charset=utf-8",
-
-        ".css":
-            "text/css; charset=utf-8",
-
-        ".json":
-            "application/json; charset=utf-8",
-
-        ".png":
-            "image/png",
-
-        ".jpg":
-            "image/jpeg",
-
-        ".jpeg":
-            "image/jpeg",
-
-        ".webp":
-            "image/webp",
-
-        ".svg":
-            "image/svg+xml",
-
-        ".ico":
-            "image/x-icon"
-    };
-
-
-    fs.readFile(
-        filePath,
-        (error, content) => {
-
-            if (error) {
-
-                res.writeHead(404);
-
-                res.end(
-                    "Not Found"
-                );
+            if (
+                normalizeText(
+                    record.name
+                ) !==
+                normalizeText(
+                    currentPlayer.name
+                )
+            ) {
 
                 return;
+
             }
 
 
-            res.writeHead(
-                200,
-                {
-                    "Content-Type":
-                        contentTypes[ext] ||
-                        "application/octet-stream"
-                }
-            );
+            const score =
+                calculateIdentityScore(
+                    currentPlayer,
+                    record
+                );
 
 
-            res.end(content);
+            candidates.push({
+
+                ...record,
+
+                trackingScore:
+                    score.score,
+
+                trackingReasons:
+                    score.reasons
+
+            });
+
         }
     );
+
+
+    /*
+     * 날짜 + 서버 + 닉네임 기준 중복 제거
+     */
+
+    const unique =
+        new Map();
+
+
+    candidates.forEach(
+        function (candidate) {
+
+            const key =
+                [
+                    candidate.date,
+                    candidate.server,
+                    candidate.name
+                ].join("|");
+
+
+            if (
+                !unique.has(key)
+            ) {
+
+                unique.set(
+                    key,
+                    candidate
+                );
+
+            }
+
+        }
+    );
+
+
+    const result =
+        Array.from(
+            unique.values()
+        );
+
+
+    /*
+     * 같은 서버 / 같은 직업 / 비슷한 레벨과
+     * 전투력에 가까운 후보가 위로 오도록.
+     */
+
+    result.sort(
+        function (a, b) {
+
+            return (
+                b.trackingScore -
+                a.trackingScore
+            );
+
+        }
+    );
+
+
+    /*
+     * 후보 캐릭터별 요약
+     */
+
+    const groups =
+        new Map();
+
+
+    result.forEach(
+        function (candidate) {
+
+            const key =
+                [
+                    candidate.server,
+                    candidate.name,
+                    candidate.main_job
+                ].join("|");
+
+
+            if (
+                !groups.has(key)
+            ) {
+
+                groups.set(
+                    key,
+                    {
+
+                        name:
+                            candidate.name,
+
+                        server:
+                            candidate.server,
+
+                        worldId:
+                            candidate.worldId,
+
+                        main_job:
+                            candidate.main_job,
+
+                        level:
+                            candidate.level,
+
+                        power:
+                            candidate.power,
+
+                        rank:
+                            candidate.rank,
+
+                        trackingScore:
+                            candidate.trackingScore,
+
+                        historyLength:
+                            0
+
+                    }
+                );
+
+            }
+
+
+            groups.get(
+                key
+            ).historyLength++;
+
+        }
+    );
+
+
+    return Array.from(
+        groups.values()
+    )
+        .sort(
+            function (a, b) {
+
+                return (
+                    b.trackingScore -
+                    a.trackingScore
+                );
+
+            }
+        );
+
 }
 
 
-/* =========================================
-   서버
-========================================= */
+// ======================================================
+// 현재 날짜 기록 생성
+// ======================================================
+
+function makeHistoryRecord(
+    player
+) {
+
+    return {
+
+        date:
+            player.date ||
+            "",
+
+        name:
+            player.name ||
+            "",
+
+        server:
+            player.server ||
+            "",
+
+        worldId:
+            player.worldId ||
+            "",
+
+        level:
+            numberValue(
+                player.level
+            ),
+
+        power:
+            numberValue(
+                player.power
+            ),
+
+        rank:
+            numberValue(
+                player.rank
+            ),
+
+        totalRank:
+            numberValue(
+                player.totalRank
+            ),
+
+        main_job:
+            player.main_job ||
+            "",
+
+        guild_name:
+            player.guild_name ||
+            player.guildName ||
+            ""
+
+    };
+
+}
+
+
+// ======================================================
+// API 서버
+// ======================================================
 
 const server =
     http.createServer(
-        async (
+        async function (
             req,
             res
-        ) => {
+        ) {
 
             try {
 
-                const requestUrl =
-                    new URL(
+                const parsedUrl =
+                    url.parse(
                         req.url,
-                        "http://" +
-                        req.headers.host
+                        true
                     );
 
 
-                /* =========================
-                   전체 랭킹
-                ========================= */
+                const pathname =
+                    parsedUrl.pathname;
+
+
+                const query =
+                    parsedUrl.query;
+
+
+                // ======================================
+                // 전체 랭킹
+                // ======================================
 
                 if (
-                    requestUrl.pathname ===
+                    pathname ===
                     "/api/all-ranking"
                 ) {
 
@@ -1372,178 +2567,86 @@ const server =
                         await getAllRanking();
 
 
-                    /*
-                        오늘 파일이 없을 때만 저장.
-                        기존 8월 기록은 건드리지 않음.
-                    */
-
-                    await saveDailyRanking(
-                        ranking
-                    );
-
-
                     sendJson(
                         res,
-                        200,
                         {
+                            resultCode: 200,
+                            data: ranking,
                             total:
-                                ranking.length,
-
-                            data:
-                                ranking
+                                ranking.length
                         }
                     );
 
+
                     return;
+
                 }
 
 
-                /* =========================
-                   특정 서버 랭킹
-                ========================= */
+                // ======================================
+                // 특정 서버 랭킹
+                // ======================================
 
                 if (
-                    requestUrl.pathname ===
+                    pathname ===
                     "/api/ranking"
                 ) {
 
                     const worldId =
-                        requestUrl.searchParams.get(
-                            "worldId"
+                        String(
+                            query.worldId ||
+                            ""
                         );
 
 
-                    if (!worldId) {
+                    if (
+                        !worldId ||
+                        !WORLD_IDS[worldId]
+                    ) {
 
                         sendJson(
                             res,
-                            400,
                             {
-                                error:
-                                    "worldId required"
-                            }
+                                resultCode: 400,
+                                message:
+                                    "worldId가 필요합니다."
+                            },
+                            400
                         );
 
                         return;
-                    }
 
-
-                    const world =
-                        Object.entries(
-                            worlds
-                        ).find(
-                            ([name, id]) =>
-                                String(id) ===
-                                String(worldId)
-                        );
-
-
-                    if (!world) {
-
-                        sendJson(
-                            res,
-                            404,
-                            {
-                                error:
-                                    "world not found"
-                            }
-                        );
-
-                        return;
                     }
 
 
                     const ranking =
                         await getWorldRanking(
-                            world[0],
-                            Number(worldId)
-                        );
-
-
-                    sendJson(
-                        res,
-                        200,
-                        {
-                            resultData: {
-
-                                resCode:
-                                    0,
-
-                                errorMessage:
-                                    "Success",
-
-                                resData:
-                                    ranking
-                            }
-                        }
-                    );
-
-                    return;
-                }
-
-
-                /* =========================
-                   플레이어 추적
-                ========================= */
-
-                if (
-                    requestUrl.pathname ===
-                    "/api/tracking"
-                ) {
-
-                    const name =
-                        requestUrl.searchParams.get(
-                            "name"
-                        );
-
-
-                    const worldId =
-                        requestUrl.searchParams.get(
-                            "worldId"
-                        );
-
-
-                    if (
-                        !name ||
-                        !name.trim()
-                    ) {
-
-                        sendJson(
-                            res,
-                            400,
-                            {
-                                error:
-                                    "name required"
-                            }
-                        );
-
-                        return;
-                    }
-
-
-                    const result =
-                        getPlayerTracking(
-                            name,
                             worldId
                         );
 
 
                     sendJson(
                         res,
-                        200,
-                        result
+                        {
+                            resultCode: 200,
+                            data: ranking,
+                            total:
+                                ranking.length
+                        }
                     );
 
+
                     return;
+
                 }
 
 
-                /* =========================
-                   과거 날짜 목록
-                ========================= */
+                // ======================================
+                // 과거 날짜 목록
+                // ======================================
 
                 if (
-                    requestUrl.pathname ===
+                    pathname ===
                     "/api/history-dates"
                 ) {
 
@@ -1553,228 +2656,401 @@ const server =
 
                     sendJson(
                         res,
-                        200,
                         {
-                            dates:
-                                dates
+                            resultCode: 200,
+                            dates
                         }
                     );
 
+
                     return;
+
                 }
 
 
-                /* =========================
-                   과거 랭킹
-                ========================= */
+                // ======================================
+                // 특정 날짜 랭킹
+                // ======================================
 
                 if (
-                    requestUrl.pathname ===
+                    pathname ===
                     "/api/history"
                 ) {
 
                     const date =
-                        requestUrl.searchParams.get(
-                            "date"
+                        String(
+                            query.date ||
+                            ""
                         );
 
 
-                    if (!date) {
+                    if (
+                        !/^\d{4}-\d{2}-\d{2}$/
+                            .test(
+                                date
+                            )
+                    ) {
 
                         sendJson(
                             res,
-                            400,
                             {
-                                error:
-                                    "date required"
-                            }
+                                resultCode: 400,
+                                message:
+                                    "올바른 날짜가 필요합니다."
+                            },
+                            400
                         );
 
                         return;
+
                     }
 
 
-                    const history =
-                        getHistoryRanking(
+                    const data =
+                        readHistoryDate(
                             date
                         );
 
 
-                    if (!history) {
+                    sendJson(
+                        res,
+                        {
+                            resultCode: 200,
+                            date,
+                            data,
+                            total:
+                                data.length
+                        }
+                    );
+
+
+                    return;
+
+                }
+
+
+                // ======================================
+                // 플레이어 추적
+                // ======================================
+
+                if (
+                    pathname ===
+                    "/api/tracking"
+                ) {
+
+                    const name =
+                        String(
+                            query.name ||
+                            ""
+                        ).trim();
+
+
+                    const serverName =
+                        String(
+                            query.server ||
+                            ""
+                        ).trim();
+
+
+                    const worldId =
+                        String(
+                            query.worldId ||
+                            ""
+                        ).trim();
+
+
+                    if (!name) {
 
                         sendJson(
                             res,
-                            404,
                             {
-                                error:
-                                    "history not found"
+                                resultCode: 400,
+                                found: false,
+                                message:
+                                    "닉네임이 필요합니다."
+                            },
+                            400
+                        );
+
+                        return;
+
+                    }
+
+
+                    /*
+                     * 현재 API에서 최신 플레이어 정보를
+                     * 가져온다.
+                     *
+                     * 서버가 넘어온 경우 해당 서버를 우선.
+                     */
+
+                    let currentPlayer =
+                        null;
+
+
+                    if (
+                        worldId &&
+                        WORLD_IDS[worldId]
+                    ) {
+
+                        const ranking =
+                            await getWorldRanking(
+                                worldId
+                            );
+
+
+                        currentPlayer =
+                            ranking.find(
+                                function (
+                                    player
+                                ) {
+
+                                    return (
+                                        normalizeText(
+                                            player.name
+                                        ) ===
+                                        normalizeText(
+                                            name
+                                        )
+                                    );
+
+                                }
+                            ) ||
+                            null;
+
+                    }
+
+
+                    /*
+                     * worldId가 없거나
+                     * 해당 서버에서 찾지 못한 경우
+                     * 전체 랭킹에서 찾는다.
+                     */
+
+                    if (
+                        !currentPlayer
+                    ) {
+
+                        const ranking =
+                            await getAllRanking();
+
+
+                        currentPlayer =
+                            ranking.find(
+                                function (
+                                    player
+                                ) {
+
+                                    const nameMatch =
+                                        normalizeText(
+                                            player.name
+                                        ) ===
+                                        normalizeText(
+                                            name
+                                        );
+
+
+                                    const serverMatch =
+                                        !serverName ||
+                                        player.server ===
+                                            serverName;
+
+
+                                    return (
+                                        nameMatch &&
+                                        serverMatch
+                                    );
+
+                                }
+                            ) ||
+                            null;
+
+                    }
+
+
+                    /*
+                     * 그래도 못 찾으면
+                     * 이름만으로 전체 랭킹에서 검색.
+                     */
+
+                    if (
+                        !currentPlayer
+                    ) {
+
+                        const ranking =
+                            await getAllRanking();
+
+
+                        currentPlayer =
+                            ranking.find(
+                                function (
+                                    player
+                                ) {
+
+                                    return (
+                                        normalizeText(
+                                            player.name
+                                        ) ===
+                                        normalizeText(
+                                            name
+                                        )
+                                    );
+
+                                }
+                            ) ||
+                            null;
+
+                    }
+
+
+                    if (
+                        !currentPlayer
+                    ) {
+
+                        sendJson(
+                            res,
+                            {
+                                resultCode: 200,
+                                found: false,
+                                name
                             }
                         );
 
                         return;
+
                     }
+
+
+                    /*
+                     * 현재 플레이어의 기록 추적.
+                     */
+
+                    const tracking =
+                        trackPlayer(
+                            currentPlayer
+                        );
+
+
+                    /*
+                     * 동명이인 후보도 함께 제공.
+                     */
+
+                    const candidates =
+                        getPlayerCandidates(
+                            currentPlayer
+                        );
 
 
                     sendJson(
                         res,
-                        200,
-                        history
+                        {
+                            resultCode: 200,
+
+                            found: true,
+
+                            current:
+                                makeHistoryRecord(
+                                    {
+                                        ...currentPlayer,
+                                        date:
+                                            "현재"
+                                    }
+                                ),
+
+                            history:
+                                tracking.history,
+
+                            moves:
+                                tracking.moves,
+
+                            guildMoves:
+                                tracking.guildMoves,
+
+                            nicknameChanges:
+                                tracking.nicknameChanges,
+
+                            candidates,
+
+                            trackingConfidence:
+                                tracking.trackingConfidence,
+
+                            trackingConfidenceLevel:
+                                tracking.trackingConfidenceLevel,
+
+                            trackingReasons:
+                                tracking.trackingReasons,
+
+                            selectedCandidates:
+                                tracking.selectedCandidates
+
+                        }
                     );
 
+
                     return;
+
                 }
 
 
-                /* =========================
-                   정적 파일
-                ========================= */
+                // ======================================
+                // 일반 정적 파일
+                // ======================================
 
-                serveStatic(
+                serveStaticFile(
                     req,
-                    res
+                    res,
+                    pathname
                 );
 
-            } catch (error) {
+
+            } catch (
+                error
+            ) {
 
                 console.error(
-                    "[SERVER ERROR]",
+                    "SERVER ERROR:",
                     error
                 );
 
 
                 sendJson(
                     res,
-                    500,
                     {
-                        error:
-                            "server error"
-                    }
+                        resultCode: 500,
+                        message:
+                            error.message ||
+                            "서버 오류"
+                    },
+                    500
                 );
+
             }
+
         }
     );
 
 
-/* =========================================
-   서버 시작
-========================================= */
+// ======================================================
+// 서버 시작
+// ======================================================
 
 server.listen(
     PORT,
-    "0.0.0.0",
-    () => {
+    function () {
 
         console.log(
-            "================================"
+            "SERVER STARTED"
         );
 
         console.log(
-            "아스달 지지 서버 시작"
-        );
-
-        console.log(
-            "PORT:",
+            "PORT",
             PORT
         );
 
         console.log(
-            "DATA:",
-            DATA_DIR
+            "http://localhost:" +
+            PORT
         );
 
-        console.log(
-            "TODAY:",
-            getTodayDate()
-        );
-
-        console.log(
-            "================================"
-        );
-
-
-        checkDailySave();
     }
-);
-
-
-/* =========================================
-   하루 1회 자동 저장
-========================================= */
-
-let dailySaveRunning = false;
-
-
-async function checkDailySave() {
-
-    if (
-        dailySaveRunning
-    ) {
-
-        return;
-    }
-
-
-    const today =
-        getTodayDate();
-
-    const filePath =
-        getHistoryFile(today);
-
-
-    /*
-        오늘 파일이 이미 있으면
-        다시 전체 API를 호출하지 않습니다.
-    */
-
-    if (
-        fs.existsSync(filePath)
-    ) {
-
-        return;
-    }
-
-
-    dailySaveRunning = true;
-
-
-    try {
-
-        console.log(
-            "[DAILY SAVE]",
-            today
-        );
-
-
-        const ranking =
-            await getAllRanking();
-
-
-        await saveDailyRanking(
-            ranking
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "[DAILY SAVE ERROR]",
-            error
-        );
-
-
-    } finally {
-
-        dailySaveRunning =
-            false;
-    }
-}
-
-
-setInterval(
-    () => {
-
-        checkDailySave();
-
-    },
-    60 * 1000
 );
