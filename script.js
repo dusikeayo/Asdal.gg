@@ -1,32 +1,90 @@
 const rankingBody = document.getElementById("rankingBody");
-
 const serverFilter = document.getElementById("serverFilter");
 const searchInput = document.getElementById("searchInput");
 const searchButton = document.getElementById("searchButton");
 const sortFilter = document.getElementById("sortFilter");
-const historyFilter = document.getElementById("historyFilter");
-const rankingStatus = document.getElementById("rankingStatus");
 
-const trackingName = document.getElementById("trackingName");
-const trackingServer = document.getElementById("trackingServer");
-const trackingButton = document.getElementById("trackingButton");
-const trackingStatus = document.getElementById("trackingStatus");
-const trackingResult = document.getElementById("trackingResult");
-
-const guildSearchInput = document.getElementById("guildSearchInput");
-const guildSearchButton = document.getElementById("guildSearchButton");
-const guildStatus = document.getElementById("guildStatus");
-const guildResult = document.getElementById("guildResult");
-
-const navButtons = document.querySelectorAll(".nav-button");
-const pages = document.querySelectorAll(".page");
+let historyFilter = document.getElementById("historyFilter");
+let rankingStatus = document.getElementById("rankingStatus");
 
 
-/* =========================================
-   서버 목록
-========================================= */
+// ==============================
+// 기본 요소 확인
+// ==============================
+
+if (
+    !rankingBody ||
+    !serverFilter ||
+    !searchInput ||
+    !searchButton ||
+    !sortFilter
+) {
+    console.error("필수 HTML 요소를 찾을 수 없습니다.");
+}
+
+
+// ==============================
+// 과거 날짜 선택창 자동 생성
+// ==============================
+
+if (!historyFilter) {
+
+    historyFilter = document.createElement("select");
+    historyFilter.id = "historyFilter";
+
+    historyFilter.innerHTML = `
+        <option value="current">현재 랭킹</option>
+    `;
+
+    const searchBox =
+        document.querySelector(".search-box");
+
+    if (searchBox) {
+        searchBox.appendChild(historyFilter);
+    }
+}
+
+
+// ==============================
+// 랭킹 상태 표시 자동 생성
+// ==============================
+
+if (!rankingStatus) {
+
+    rankingStatus = document.createElement("div");
+    rankingStatus.id = "rankingStatus";
+
+    rankingStatus.style.margin = "15px 0";
+    rankingStatus.style.color = "#aaa";
+
+    const rankingSection =
+        document.querySelector(".ranking");
+
+    if (rankingSection) {
+
+        const title =
+            rankingSection.querySelector("h2");
+
+        if (title) {
+            title.insertAdjacentElement(
+                "afterend",
+                rankingStatus
+            );
+        } else {
+            rankingSection.prepend(
+                rankingStatus
+            );
+        }
+    }
+}
+
+
+// ==============================
+// 아스달 월드 목록
+// ==============================
 
 const worlds = {
+
     "크라본": 70110,
     "하제산": 32201,
     "추산도": 32202,
@@ -45,23 +103,140 @@ const worlds = {
     "아라": 70319,
     "오리온": 70320,
     "리라": 70321
+
 };
 
 
-/* =========================================
-   전역 데이터
-========================================= */
+// ==============================
+// 현재 데이터
+// ==============================
 
 let currentData = [];
-let currentHistoryDate = null;
+
+let currentHistoryDate = "current";
+
 let historyCache = {};
 
-let previousPage = "rankingPage";
+
+// ==============================
+// 서버 선택창 만들기
+// ==============================
+
+serverFilter.innerHTML = "";
+
+const allOption =
+    document.createElement("option");
+
+allOption.value = "all";
+allOption.textContent = "전체 서버";
+
+serverFilter.appendChild(
+    allOption
+);
 
 
-/* =========================================
-   HTML 이스케이프
-========================================= */
+Object.entries(worlds).forEach(
+    function ([serverName, worldId]) {
+
+        const option =
+            document.createElement("option");
+
+        option.value = worldId;
+        option.textContent = serverName;
+
+        serverFilter.appendChild(
+            option
+        );
+
+    }
+);
+
+
+// ==============================
+// 서버 이름 찾기
+// ==============================
+
+function getServerName(worldId) {
+
+    return Object.keys(worlds).find(
+        function (name) {
+
+            return (
+                String(worlds[name]) ===
+                String(worldId)
+            );
+
+        }
+    ) || "";
+
+}
+
+
+// ==============================
+// 숫자 표시
+// ==============================
+
+function formatNumber(value) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+        return "-";
+    }
+
+    const number =
+        Number(
+            String(value).replace(/,/g, "")
+        );
+
+    if (Number.isNaN(number)) {
+        return "-";
+    }
+
+    return number.toLocaleString();
+}
+
+
+// ==============================
+// 변화량 표시
+// ==============================
+
+function formatChange(value) {
+
+    const number =
+        Number(value) || 0;
+
+    if (number > 0) {
+
+        return `
+            <span class="history-up">
+                ▲ ${formatNumber(number)}
+            </span>
+        `;
+    }
+
+    if (number < 0) {
+
+        return `
+            <span class="history-down">
+                ▼ ${formatNumber(Math.abs(number))}
+            </span>
+        `;
+    }
+
+    return `
+        <span class="history-same">
+            - 0
+        </span>
+    `;
+}
+
+
+// ==============================
+// HTML 안전 처리
+// ==============================
 
 function escapeHtml(value) {
 
@@ -74,159 +249,228 @@ function escapeHtml(value) {
 }
 
 
-/* =========================================
-   숫자 포맷
-========================================= */
+// ==============================
+// 순위 가져오기
+// ==============================
 
-function formatNumber(value) {
+/*
+ * 중요:
+ *
+ * rank = 실제 순위
+ * totalRank = 전체 인원 수
+ *
+ * 따라서 화면의 "순위"에는
+ * totalRank를 사용하면 안 된다.
+ */
 
-    const number = Number(value);
+function getPlayerRank(player) {
 
-    if (!Number.isFinite(number)) {
-        return "0";
+    if (
+        player.rank !== null &&
+        player.rank !== undefined &&
+        player.rank !== ""
+    ) {
+        return Number(player.rank) || 0;
     }
 
-    return number.toLocaleString("ko-KR");
+    return 0;
 }
 
 
-/* =========================================
-   날짜 포맷
-========================================= */
+// ==============================
+// 과거 날짜 목록
+// ==============================
 
-function formatDate(date) {
+async function loadHistoryDates() {
 
-    if (!date) {
-        return "";
-    }
+    try {
 
-    const parts = String(date).split("-");
+        const response =
+            await fetch(
+                "/api/history-dates"
+            );
 
-    if (parts.length !== 3) {
-        return date;
-    }
-
-    return `${parts[0]}.${parts[1]}.${parts[2]}`;
-}
-
-
-/* =========================================
-   페이지 이동
-========================================= */
-
-function showPage(pageId) {
-
-    pages.forEach(page => {
-        page.classList.toggle(
-            "active",
-            page.id === pageId
-        );
-    });
-
-    navButtons.forEach(button => {
-        button.classList.toggle(
-            "active",
-            button.dataset.page === pageId
-        );
-    });
-
-    if (pageId === "guildPage") {
-        guildSearchInput.focus();
-    }
-
-    if (pageId === "trackingPage") {
-        trackingName.focus();
-    }
-}
-
-
-navButtons.forEach(button => {
-
-    button.addEventListener("click", () => {
-
-        const pageId = button.dataset.page;
-
-        if (pageId !== "trackingPage") {
-            previousPage = pageId;
+        if (!response.ok) {
+            throw new Error(
+                "날짜 목록 오류"
+            );
         }
 
-        showPage(pageId);
-    });
+        const result =
+            await response.json();
 
-});
+        const dates =
+            result.dates || [];
+
+        historyFilter.innerHTML = "";
+
+        const currentOption =
+            document.createElement("option");
+
+        currentOption.value =
+            "current";
+
+        currentOption.textContent =
+            "현재 랭킹";
+
+        historyFilter.appendChild(
+            currentOption
+        );
 
 
-/* =========================================
-   서버 셀렉트 생성
-========================================= */
+        dates.forEach(
+            function (date) {
 
-function populateServerSelects() {
+                const option =
+                    document.createElement("option");
 
-    const serverOptions = Object.entries(worlds)
-        .map(([name, id]) => {
-            return `<option value="${id}">${escapeHtml(name)}</option>`;
-        })
-        .join("");
+                option.value = date;
 
-    serverFilter.innerHTML =
-        `<option value="all">전체 서버</option>` +
-        serverOptions;
+                option.textContent =
+                    date + " 랭킹";
 
-    trackingServer.innerHTML =
-        `<option value="all">서버 선택</option>` +
-        serverOptions;
+                historyFilter.appendChild(
+                    option
+                );
+
+            }
+        );
+
+
+        historyFilter.value =
+            currentHistoryDate;
+
+
+    } catch (error) {
+
+        console.error(
+            "과거 날짜 목록 오류:",
+            error
+        );
+    }
 }
 
 
-/* =========================================
-   현재 랭킹 로드
-========================================= */
+// ==============================
+// 현재 개별 서버 랭킹
+// ==============================
 
-async function loadAllRanking() {
+async function loadRanking() {
 
-    rankingStatus.textContent = "전체 서버 랭킹을 불러오는 중입니다...";
+    const worldId =
+        serverFilter.value;
+
+    if (
+        !worldId ||
+        worldId === "all"
+    ) {
+        return;
+    }
+
+    const serverName =
+        getServerName(worldId);
+
 
     rankingBody.innerHTML = `
         <tr>
-            <td colspan="8" class="loading">
-                전체 서버 랭킹을 불러오는 중...
+            <td colspan="7">
+                ${escapeHtml(serverName)}
+                랭킹을 불러오는 중입니다...
             </td>
         </tr>
     `;
 
+
     try {
 
-        const response = await fetch("/api/all-ranking");
+        const response =
+            await fetch(
+                "/api/ranking?worldId=" +
+                encodeURIComponent(worldId)
+            );
+
 
         if (!response.ok) {
-            throw new Error("랭킹 요청 실패");
+
+            throw new Error(
+                "서버 오류: " +
+                response.status
+            );
         }
 
-        const json = await response.json();
 
-        if (!json || !Array.isArray(json.data)) {
-            throw new Error("잘못된 랭킹 데이터");
+        const result =
+            await response.json();
+
+
+        /*
+         * 새 server.js는
+         *
+         * {
+         *   resultCode: 200,
+         *   data: [...]
+         * }
+         *
+         * 형식으로 반환한다.
+         */
+
+        const rows =
+            result.data || [];
+
+
+        if (!Array.isArray(rows)) {
+
+            throw new Error(
+                "랭킹 데이터 형식 오류"
+            );
         }
 
-        currentData = json.data;
-        currentHistoryDate = null;
+
+        currentData =
+            rows.map(
+                function (player) {
+
+                    return {
+
+                        ...player,
+
+                        server:
+                            player.server ||
+                            serverName,
+
+                        worldId:
+                            player.worldId ||
+                            worldId
+
+                    };
+
+                }
+            );
+
 
         rankingStatus.textContent =
-            `현재 랭킹 ${formatNumber(currentData.length)}명`;
+            "현재 랭킹 - " +
+            serverName +
+            " / " +
+            currentData.length +
+            "명";
 
-        renderRanking();
+
+        applyFiltersAndSort();
+
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "랭킹 불러오기 실패:",
+            error
+        );
 
-        rankingStatus.textContent =
-            "랭킹을 불러오지 못했습니다.";
 
         rankingBody.innerHTML = `
             <tr>
-                <td colspan="8" class="empty">
-                    랭킹을 불러오는 중 오류가 발생했습니다.
+                <td colspan="7">
+                    랭킹 데이터를 불러오지 못했습니다.
                 </td>
             </tr>
         `;
@@ -234,58 +478,80 @@ async function loadAllRanking() {
 }
 
 
-/* =========================================
-   과거 날짜 목록
-========================================= */
+// ==============================
+// 현재 전체 랭킹
+// ==============================
 
-async function loadHistoryDates() {
+async function loadAllRanking() {
+
+    rankingBody.innerHTML = `
+        <tr>
+            <td colspan="7">
+                전체 서버 랭킹을 불러오는 중입니다...
+            </td>
+        </tr>
+    `;
+
 
     try {
 
         const response =
-            await fetch("/api/history-dates");
+            await fetch(
+                "/api/all-ranking"
+            );
+
 
         if (!response.ok) {
-            return;
+
+            throw new Error(
+                "서버 오류: " +
+                response.status
+            );
         }
 
-        const json = await response.json();
 
-        const dates =
-            Array.isArray(json)
-                ? json
-                : Array.isArray(json.dates)
-                    ? json.dates
-                    : [];
+        const result =
+            await response.json();
 
-        historyFilter.innerHTML =
-            `<option value="current">현재 랭킹</option>`;
 
-        dates.forEach(date => {
+        currentData =
+            result.data || [];
 
-            const option =
-                document.createElement("option");
 
-            option.value = date;
-            option.textContent =
-                `${formatDate(date)} 랭킹`;
+        rankingStatus.textContent =
+            "현재 전체 서버 랭킹 - " +
+            currentData.length +
+            "명";
 
-            historyFilter.appendChild(option);
-        });
+
+        applyFiltersAndSort();
+
+
+        await loadHistoryDates();
+
 
     } catch (error) {
 
         console.error(
-            "history dates error:",
+            "전체 랭킹 불러오기 실패:",
             error
         );
+
+
+        rankingBody.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    전체 랭킹을 불러오지 못했습니다.
+                </td>
+            </tr>
+        `;
     }
 }
 
 
-/* =========================================
-   과거 랭킹 가져오기
-========================================= */
+// ==============================
+// 과거 랭킹 가져오기
+// ==============================
 
 async function getHistoryData(date) {
 
@@ -293,77 +559,87 @@ async function getHistoryData(date) {
         return historyCache[date];
     }
 
+
     const response =
         await fetch(
-            `/api/history?date=${encodeURIComponent(date)}`
+            "/api/history?date=" +
+            encodeURIComponent(date)
         );
 
+
     if (!response.ok) {
-        throw new Error("과거 랭킹 요청 실패");
+
+        throw new Error(
+            "과거 랭킹 데이터가 없습니다."
+        );
     }
 
-    const json = await response.json();
 
-    let data = [];
+    const result =
+        await response.json();
 
-    if (Array.isArray(json)) {
-        data = json;
-    } else if (Array.isArray(json.data)) {
-        data = json.data;
-    } else if (
-        json.resultData &&
-        Array.isArray(json.resultData.resData)
-    ) {
-        data = json.resultData.resData;
-    }
 
-    historyCache[date] = data;
+    historyCache[date] =
+        result;
 
-    return data;
+
+    return result;
 }
 
 
-/* =========================================
-   과거 랭킹 선택
-========================================= */
+// ==============================
+// 과거 랭킹 표시
+// ==============================
 
 async function loadHistoryRanking(date) {
 
-    rankingStatus.textContent =
-        `${formatDate(date)} 랭킹을 불러오는 중입니다...`;
-
     rankingBody.innerHTML = `
         <tr>
-            <td colspan="8" class="loading">
-                과거 랭킹을 불러오는 중...
+            <td colspan="7">
+                ${escapeHtml(date)}
+                랭킹을 불러오는 중입니다...
             </td>
         </tr>
     `;
 
+
     try {
 
-        const data =
+        const result =
             await getHistoryData(date);
 
-        currentData = data;
-        currentHistoryDate = date;
+
+        currentData =
+            result.data || [];
+
 
         rankingStatus.textContent =
-            `${formatDate(date)} 랭킹 ${formatNumber(data.length)}명`;
+            "과거 랭킹 - " +
+            date +
+            " / " +
+            currentData.length +
+            "명";
 
-        renderRanking();
+
+        applyFiltersAndSort();
+
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "과거 랭킹 오류:",
+            error
+        );
 
-        rankingStatus.textContent =
-            "과거 랭킹을 불러오지 못했습니다.";
+
+        currentData = [];
+
 
         rankingBody.innerHTML = `
             <tr>
-                <td colspan="8" class="empty">
-                    해당 날짜의 랭킹을 불러오지 못했습니다.
+                <td colspan="7">
+                    ${escapeHtml(date)}
+                    의 랭킹 데이터가 없습니다.
                 </td>
             </tr>
         `;
@@ -371,113 +647,140 @@ async function loadHistoryRanking(date) {
 }
 
 
-/* =========================================
-   정렬
-========================================= */
+// ==============================
+// 검색 / 서버 / 정렬
+// ==============================
 
-function sortRanking(data) {
+function applyFiltersAndSort() {
 
-    const sortType =
-        sortFilter.value;
+    const keyword =
+        searchInput.value.trim();
 
-    const result =
-        [...data];
-
-    if (sortType === "power") {
-
-        result.sort((a, b) => {
-
-            return (
-                (Number(b.power) || 0) -
-                (Number(a.power) || 0)
-            );
-        });
-
-    } else if (sortType === "level") {
-
-        result.sort((a, b) => {
-
-            return (
-                (Number(b.level) || 0) -
-                (Number(a.level) || 0)
-            );
-        });
-
-    } else if (sortType === "nickname") {
-
-        result.sort((a, b) => {
-
-            return String(a.name || "")
-                .localeCompare(
-                    String(b.name || ""),
-                    "ko"
-                );
-        });
-
-    } else if (sortType === "rank") {
-
-        result.sort((a, b) => {
-
-            return (
-                (Number(a.totalRank || a.rank) || 999999) -
-                (Number(b.totalRank || b.rank) || 999999)
-            );
-        });
-    }
-
-    return result;
-}
-
-
-/* =========================================
-   랭킹 렌더링
-========================================= */
-
-function renderRanking() {
-
-    const search =
-        searchInput.value
-            .trim()
-            .toLowerCase();
 
     const selectedServer =
         serverFilter.value;
 
-    let data =
-        Array.isArray(currentData)
-            ? [...currentData]
-            : [];
 
-    if (selectedServer !== "all") {
+    let filteredData =
+        currentData.filter(
+            function (player) {
 
-        data =
-            data.filter(player => {
+                const nickname =
+                    String(
+                        player.name || ""
+                    );
 
-                return String(player.worldId) ===
-                    String(selectedServer);
-            });
+
+                const nicknameMatch =
+                    nickname.includes(
+                        keyword
+                    );
+
+
+                const serverName =
+                    player.server ||
+                    getServerName(
+                        player.worldId
+                    );
+
+
+                const serverMatch =
+                    selectedServer === "all" ||
+                    String(
+                        player.worldId || ""
+                    ) ===
+                    String(
+                        selectedServer
+                    ) ||
+                    serverName ===
+                    getServerName(
+                        selectedServer
+                    );
+
+
+                return (
+                    nicknameMatch &&
+                    serverMatch
+                );
+            }
+        );
+
+
+    if (
+        sortFilter.value === "power"
+    ) {
+
+        filteredData.sort(
+            function (a, b) {
+
+                return (
+                    (Number(b.power) || 0) -
+                    (Number(a.power) || 0)
+                );
+
+            }
+        );
     }
 
-    if (search) {
 
-        data =
-            data.filter(player => {
+    if (
+        sortFilter.value === "level"
+    ) {
 
-                const name =
-                    String(player.name || "")
-                        .toLowerCase();
+        filteredData.sort(
+            function (a, b) {
 
-                return name.includes(search);
-            });
+                return (
+                    (Number(b.level) || 0) -
+                    (Number(a.level) || 0)
+                );
+
+            }
+        );
     }
 
-    data = sortRanking(data);
+
+    if (
+        sortFilter.value === "nickname"
+    ) {
+
+        filteredData.sort(
+            function (a, b) {
+
+                return String(
+                    a.name || ""
+                ).localeCompare(
+                    String(
+                        b.name || ""
+                    ),
+                    "ko"
+                );
+
+            }
+        );
+    }
+
+
+    displayRanking(
+        filteredData
+    );
+}
+
+
+// ==============================
+// 랭킹 출력
+// ==============================
+
+function displayRanking(data) {
+
+    rankingBody.innerHTML = "";
+
 
     if (data.length === 0) {
 
         rankingBody.innerHTML = `
             <tr>
-                <td colspan="8" class="empty">
+                <td colspan="7">
                     검색 결과가 없습니다.
                 </td>
             </tr>
@@ -486,945 +789,1763 @@ function renderRanking() {
         return;
     }
 
-    rankingBody.innerHTML =
-        data.map((player, index) => {
 
-            const rank =
-                currentHistoryDate
-                    ? (
-                        Number(player.totalRank) ||
-                        Number(player.rank) ||
-                        index + 1
-                    )
-                    : (
-                        Number(player.totalRank) ||
-                        index + 1
-                    );
+    data.forEach(
+        function (player, index) {
 
-            const server =
-                player.server || "-";
+            const row =
+                document.createElement("tr");
 
-            const guild =
-                player.guild_name || "무소속";
 
-            const job =
-                player.main_job || "-";
-
-            const name =
+            const nickname =
                 player.name || "-";
 
-            const worldId =
-                player.worldId || "";
 
-            return `
-                <tr>
+            /*
+             * 중요:
+             * 기존에는 totalRank를 먼저 사용해서
+             * 전체 인원 수가 순위처럼 표시될 수 있었다.
+             *
+             * 이제 무조건 실제 rank 사용.
+             */
 
-                    <td>
-                        ${formatNumber(rank)}
-                    </td>
+            const rank =
+                getPlayerRank(player) ||
+                index + 1;
 
-                    <td>
-                        <button
-                            class="nickname-button"
-                            data-name="${escapeHtml(name)}"
-                            data-world-id="${escapeHtml(worldId)}"
-                        >
-                            ${escapeHtml(name)}
-                        </button>
-                    </td>
 
-                    <td>
-                        ${escapeHtml(job)}
-                    </td>
+            const guild =
+                player.guild_name ||
+                player.guildName ||
+                "무소속";
 
-                    <td>
-                        ${formatNumber(player.level)}
-                    </td>
 
-                    <td>
-                        ${formatNumber(player.power)}
-                    </td>
+            row.innerHTML = `
 
-                    <td>
-                        ${escapeHtml(guild)}
-                    </td>
+                <td>
+                    ${escapeHtml(rank)}
+                </td>
 
-                    <td>
-                        ${escapeHtml(server)}
-                    </td>
+                <td
+                    class="nickname-history"
+                    title="클릭하면 서버·연맹·성장 기록을 확인할 수 있습니다."
+                >
+                    ${escapeHtml(nickname)}
+                </td>
 
-                    <td>
-                        <button
-                            class="track-button"
-                            data-name="${escapeHtml(name)}"
-                            data-world-id="${escapeHtml(worldId)}"
-                        >
-                            추적
-                        </button>
-                    </td>
+                <td>
+                    ${escapeHtml(
+                        player.main_job || "-"
+                    )}
+                </td>
 
-                </tr>
+                <td>
+                    ${escapeHtml(
+                        player.level ?? "-"
+                    )}
+                </td>
+
+                <td>
+                    ${
+                        player.power != null
+                        ? formatNumber(
+                            player.power
+                        )
+                        : "-"
+                    }
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        player.server || "-"
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(guild)}
+                </td>
+
             `;
 
-        }).join("");
 
-    document
-        .querySelectorAll(".track-button")
-        .forEach(button => {
+            const nicknameCell =
+                row.querySelector(
+                    ".nickname-history"
+                );
 
-            button.addEventListener(
+
+            nicknameCell.addEventListener(
                 "click",
-                () => {
+                function () {
 
-                    openTracking(
-                        button.dataset.name,
-                        button.dataset.worldId
+                    openPlayerHistory(
+                        player
                     );
+
                 }
             );
-        });
 
 
-    document
-        .querySelectorAll(".nickname-button")
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    openTracking(
-                        button.dataset.name,
-                        button.dataset.worldId
-                    );
-                }
+            rankingBody.appendChild(
+                row
             );
-        });
+
+        }
+    );
 }
 
 
-/* =========================================
-   추적 열기
-========================================= */
+// ==============================
+// 날짜 배열
+// ==============================
 
-function openTracking(name, worldId) {
+async function loadHistoryDateArray() {
 
-    showPage("trackingPage");
+    const response =
+        await fetch(
+            "/api/history-dates"
+        );
 
-    trackingName.value = name;
+
+    if (!response.ok) {
+
+        throw new Error(
+            "날짜 목록 오류"
+        );
+    }
+
+
+    const result =
+        await response.json();
+
+
+    return result.dates || [];
+}
+
+
+// ==============================
+// 플레이어 추적 API
+// ==============================
+
+async function getPlayerTracking(
+    name,
+    server = "",
+    worldId = ""
+) {
+
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "name",
+        name || ""
+    );
+
+
+    if (server) {
+
+        params.set(
+            "server",
+            server
+        );
+
+    }
+
 
     if (worldId) {
-        trackingServer.value = worldId;
+
+        params.set(
+            "worldId",
+            worldId
+        );
+
     }
 
-    trackingStatus.textContent =
-        `${name} 추적 정보를 불러오는 중...`;
 
-    trackingResult.innerHTML = `
-        <div class="card">
-            <div class="loading">
-                추적 정보를 불러오는 중...
-            </div>
-        </div>
-    `;
+    const response =
+        await fetch(
+            "/api/tracking?" +
+            params.toString()
+        );
 
-    loadTracking(name, worldId);
+
+    if (!response.ok) {
+
+        throw new Error(
+            "플레이어 추적 데이터를 불러오지 못했습니다."
+        );
+    }
+
+
+    return await response.json();
 }
 
 
-/* =========================================
-   추적 데이터
-========================================= */
+// ==============================
+// 플레이어 기록 모달
+// ==============================
 
-async function loadTracking(name, worldId) {
+async function openPlayerHistory(player) {
 
-    name =
-        String(name || "")
-            .trim();
+    const modal =
+        createHistoryModal();
 
-    if (!name) {
 
-        trackingStatus.textContent =
-            "닉네임을 입력해주세요.";
+    const content =
+        modal.querySelector(
+            ".player-history-content"
+        );
 
-        trackingResult.innerHTML = "";
 
-        return;
-    }
+    content.innerHTML = `
+
+        <div class="history-loading">
+
+            ${escapeHtml(
+                player.name || "-"
+            )}의 서버·연맹·성장 기록을
+            불러오는 중...
+
+        </div>
+
+    `;
+
+
+    modal.style.display =
+        "flex";
+
 
     try {
 
-        let url =
-            `/api/tracking?name=${encodeURIComponent(name)}`;
+        const tracking =
+            await getPlayerTracking(
+                player.name,
+                player.server,
+                player.worldId
+            );
+
 
         if (
-            worldId &&
-            worldId !== "all"
+            !tracking ||
+            !tracking.found ||
+            !tracking.history ||
+            tracking.history.length === 0
         ) {
-            url +=
-                `&worldId=${encodeURIComponent(worldId)}`;
+
+            content.innerHTML = `
+
+                <div class="history-empty">
+
+                    ${escapeHtml(
+                        player.name || "-"
+                    )}의 과거 기록이 없습니다.
+
+                </div>
+
+            `;
+
+            return;
         }
 
-        const response =
-            await fetch(url);
 
-        if (!response.ok) {
-            throw new Error("추적 요청 실패");
-        }
+        // ==============================
+        // 과거 기록 정렬
+        // ==============================
 
-        const data =
-            await response.json();
+        let history =
+            tracking.history
+                .slice()
+                .sort(
+                    function (a, b) {
 
-        renderTracking(data);
-
-    } catch (error) {
-
-        console.error(error);
-
-        trackingStatus.textContent =
-            "추적 정보를 불러오지 못했습니다.";
-
-        trackingResult.innerHTML = `
-            <div class="card">
-                <div class="notice">
-                    추적 중 오류가 발생했습니다.
-                </div>
-            </div>
-        `;
-    }
-}
-
-
-/* =========================================
-   추적 결과 렌더링
-========================================= */
-
-function renderTracking(data) {
-
-    if (
-        data &&
-        Array.isArray(data.candidates) &&
-        data.candidates.length > 0
-    ) {
-
-        trackingStatus.textContent =
-            "동일한 닉네임이 여러 서버에서 발견되었습니다. 서버를 선택해주세요.";
-
-        trackingResult.innerHTML = `
-
-            <div class="card">
-
-                <div class="section-title">
-                    동명이인 선택
-                </div>
-
-                <div class="move-list">
-
-                    ${data.candidates.map(candidate => {
-
-                        return `
-                            <div class="move-item">
-
-                                <div class="move-content">
-
-                                    <strong>
-                                        ${escapeHtml(candidate.name)}
-                                    </strong>
-
-                                    <span class="arrow">·</span>
-
-                                    ${escapeHtml(candidate.server)}
-
-                                    <span class="arrow">·</span>
-
-                                    ${escapeHtml(candidate.guild_name || "무소속")}
-
-                                    <button
-                                        class="track-button"
-                                        data-candidate-name="${escapeHtml(candidate.name)}"
-                                        data-candidate-world-id="${escapeHtml(candidate.worldId)}"
-                                        style="float:right;"
-                                    >
-                                        추적
-                                    </button>
-
-                                </div>
-
-                            </div>
-                        `;
-
-                    }).join("")}
-
-                </div>
-
-            </div>
-        `;
-
-        document
-            .querySelectorAll("[data-candidate-world-id]")
-            .forEach(button => {
-
-                button.addEventListener(
-                    "click",
-                    () => {
-
-                        openTracking(
-                            button.dataset.candidateName,
-                            button.dataset.candidateWorldId
+                        return b.date.localeCompare(
+                            a.date
                         );
+
                     }
                 );
-            });
-
-        return;
-    }
 
 
-    if (!data || !data.found) {
+        /*
+         * 현재 라이브 정보.
+         *
+         * rank = 실제 순위
+         * totalRank = 전체 인원 수
+         */
 
-        trackingStatus.textContent =
-            "검색 결과가 없습니다.";
+        const liveRecord = {
 
-        trackingResult.innerHTML = `
-            <div class="card">
-                <div class="empty">
-                    해당 플레이어의 기록을 찾을 수 없습니다.
+            date: "현재",
+
+            name:
+                player.name,
+
+            server:
+                player.server ||
+                "",
+
+            worldId:
+                player.worldId ||
+                "",
+
+            level:
+                player.level,
+
+            power:
+                player.power,
+
+            rank:
+                player.rank,
+
+            totalRank:
+                player.totalRank,
+
+            main_job:
+                player.main_job,
+
+            guild_name:
+                player.guild_name ||
+                player.guildName ||
+                ""
+
+        };
+
+
+        /*
+         * 오늘 저장 데이터가 없으면
+         * 라이브 데이터를 가장 위에 표시.
+         */
+
+        const today =
+            new Date()
+                .toISOString()
+                .slice(0, 10);
+
+
+        const latestHistory =
+            history[0];
+
+
+        if (
+            !latestHistory ||
+            latestHistory.date !== today
+        ) {
+
+            history.unshift(
+                liveRecord
+            );
+        }
+
+
+        // ==============================
+        // 현재 기록
+        // ==============================
+
+        const current =
+            history[0];
+
+
+        const previous =
+            history.length > 1
+                ? history[1]
+                : null;
+
+
+        const powerChange =
+            previous
+                ? Number(
+                    current.power || 0
+                  ) -
+                  Number(
+                    previous.power || 0
+                  )
+                : 0;
+
+
+        const rankChange =
+            previous
+                ? getPlayerRank(
+                    previous
+                  ) -
+                  getPlayerRank(
+                    current
+                  )
+                : 0;
+
+
+        // ==============================
+        // 현재 정보
+        // ==============================
+
+        let html = `
+
+            <div class="player-history-header">
+
+                <div class="history-player-name">
+                    ${escapeHtml(
+                        current.name ||
+                        player.name ||
+                        "-"
+                    )}
                 </div>
+
+                <div class="history-player-info">
+
+                    <span>
+                        서버:
+                        <strong>
+                            ${escapeHtml(
+                                current.server ||
+                                "-"
+                            )}
+                        </strong>
+                    </span>
+
+                    <span>
+                        연맹:
+                        <strong>
+                            ${escapeHtml(
+                                current.guild_name ||
+                                current.guildName ||
+                                "무소속"
+                            )}
+                        </strong>
+                    </span>
+
+                    <span>
+                        직업:
+                        <strong>
+                            ${escapeHtml(
+                                current.main_job ||
+                                "-"
+                            )}
+                        </strong>
+                    </span>
+
+                </div>
+
             </div>
-        `;
-
-        return;
-    }
 
 
-    const history =
-        Array.isArray(data.history)
-            ? data.history
-            : [];
+            <div class="history-summary">
 
-    const moves =
-        Array.isArray(data.moves)
-            ? data.moves
-            : [];
+                <div class="history-summary-box">
 
-    const guildMoves =
-        Array.isArray(data.guildMoves)
-            ? data.guildMoves
-            : [];
-
-
-    const latest =
-        history.length > 0
-            ? history[history.length - 1]
-            : null;
-
-
-    trackingStatus.textContent =
-        `${data.name} 추적 결과`;
-
-
-    trackingResult.innerHTML = `
-
-        <div class="card">
-
-            <div class="player-header">
-
-                <div>
-
-                    <div class="player-name">
-                        ${escapeHtml(data.name)}
+                    <div class="history-summary-title">
+                        현재 전투력
                     </div>
 
-                    ${
-                        latest
+                    <div class="history-summary-value">
+                        ${formatNumber(
+                            current.power
+                        )}
+                    </div>
+
+                </div>
+
+
+                <div class="history-summary-box">
+
+                    <div class="history-summary-title">
+                        전투력 변화
+                    </div>
+
+                    <div class="history-summary-value">
+
+                        ${
+                            previous
+                            ? formatChange(
+                                powerChange
+                              )
+                            : "-"
+                        }
+
+                    </div>
+
+                </div>
+
+
+                <div class="history-summary-box">
+
+                    <div class="history-summary-title">
+                        순위 변화
+                    </div>
+
+                    <div class="history-summary-value">
+
+                        ${
+                            previous
+                            ? formatChange(
+                                rankChange
+                              )
+                            : "-"
+                        }
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        `;
+
+
+        // ==============================
+        // 추적 신뢰도
+        // ==============================
+
+        if (
+            tracking.trackingConfidence != null
+        ) {
+
+            html += `
+
+                <div class="tracking-section">
+
+                    <div class="tracking-section-title">
+                        캐릭터 추적 신뢰도
+                    </div>
+
+                    <div class="tracking-item">
+
+                        <div class="tracking-change">
+
+                            ${escapeHtml(
+                                tracking.trackingConfidenceLevel ||
+                                "-"
+                            )}
+
+                            <span>
+                                ${escapeHtml(
+                                    tracking.trackingConfidence
+                                )}점
+                            </span>
+
+                        </div>
+
+                        ${
+                            tracking.trackingReasons &&
+                            tracking.trackingReasons.length > 0
                             ? `
-                                <div class="player-info">
-                                    ${escapeHtml(latest.server || "-")}
-                                    ·
-                                    ${escapeHtml(latest.main_job || "-")}
+                                <div class="tracking-sub-info">
+                                    ${tracking.trackingReasons
+                                        .map(reason =>
+                                            escapeHtml(reason)
+                                        )
+                                        .join(" · ")}
                                 </div>
                             `
                             : ""
+                        }
+
+                    </div>
+
+                </div>
+
+            `;
+        }
+
+
+        // ==============================
+        // 후보 캐릭터
+        // ==============================
+
+        if (
+            tracking.candidates &&
+            tracking.candidates.length > 1
+        ) {
+
+            html += `
+
+                <div class="tracking-section">
+
+                    <div class="tracking-section-title">
+                        동일 닉네임 후보
+                    </div>
+
+                    <div class="tracking-list">
+
+            `;
+
+
+            tracking.candidates.forEach(
+                function (candidate) {
+
+                    html += `
+
+                        <div class="tracking-item">
+
+                            <div class="tracking-change">
+
+                                ${escapeHtml(
+                                    candidate.server ||
+                                    "-"
+                                )}
+
+                                /
+                                ${escapeHtml(
+                                    candidate.main_job ||
+                                    "-"
+                                )}
+
+                                /
+                                Lv.${escapeHtml(
+                                    candidate.level ||
+                                    0
+                                )}
+
+                            </div>
+
+                            <div class="tracking-sub-info">
+
+                                전투력:
+                                ${formatNumber(
+                                    candidate.power
+                                )}
+
+                                /
+                                순위:
+                                ${
+                                    candidate.rank
+                                    ? formatNumber(
+                                        candidate.rank
+                                      ) + "위"
+                                    : "-"
+                                }
+
+                                /
+                                추적점수:
+                                ${escapeHtml(
+                                    candidate.trackingScore ??
+                                    "-"
+                                )}점
+
+                                /
+                                기록:
+                                ${escapeHtml(
+                                    candidate.historyLength ??
+                                    0
+                                )}개
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            );
+
+
+            html += `
+
+                    </div>
+
+                </div>
+
+            `;
+        }
+
+
+        // ==============================
+        // 서버 이동 기록
+        // ==============================
+
+        html += `
+
+            <div class="tracking-section">
+
+                <div class="tracking-section-title">
+                    서버 이동 기록
+                </div>
+
+        `;
+
+
+        if (
+            tracking.moves &&
+            tracking.moves.length > 0
+        ) {
+
+            html += `
+                <div class="tracking-list">
+            `;
+
+
+            tracking.moves
+                .slice()
+                .reverse()
+                .forEach(
+                    function (move) {
+
+                        const fromServer =
+                            move.from ||
+                            move.fromServer ||
+                            "-";
+
+
+                        const toServer =
+                            move.to ||
+                            move.toServer ||
+                            "-";
+
+
+                        const moveDate =
+                            move.date ||
+                            move.toDate ||
+                            "";
+
+
+                        html += `
+
+                            <div class="tracking-item server-move">
+
+                                <div class="tracking-date">
+                                    ${escapeHtml(
+                                        moveDate
+                                    )}
+                                </div>
+
+                                <div class="tracking-change">
+
+                                    <span class="tracking-old">
+                                        ${escapeHtml(
+                                            fromServer
+                                        )}
+                                    </span>
+
+                                    <span class="tracking-arrow">
+                                        →
+                                    </span>
+
+                                    <span class="tracking-new">
+                                        ${escapeHtml(
+                                            toServer
+                                        )}
+                                    </span>
+
+                                </div>
+
+                                ${
+                                    move.score != null
+                                    ? `
+                                        <div class="tracking-sub-info">
+                                            일치도:
+                                            ${escapeHtml(
+                                                move.score
+                                            )}점
+                                        </div>
+                                    `
+                                    : ""
+                                }
+
+                            </div>
+
+                        `;
+
                     }
+                );
 
+
+            html += `
+                </div>
+            `;
+
+        } else {
+
+            html += `
+
+                <div class="tracking-empty">
+                    확인된 서버 이동 기록이 없습니다.
                 </div>
 
-                <button
-                    class="back-button"
-                    id="trackingBackButton"
-                >
-                    랭킹으로
-                </button>
+            `;
+        }
 
-            </div>
 
-
-            ${
-                latest
-                    ? `
-                        <div class="summary-grid">
-
-                            <div class="summary-item">
-                                <div class="summary-label">
-                                    현재 서버
-                                </div>
-
-                                <div class="summary-value">
-                                    ${escapeHtml(latest.server || "-")}
-                                </div>
-                            </div>
-
-
-                            <div class="summary-item">
-                                <div class="summary-label">
-                                    현재 연맹
-                                </div>
-
-                                <div class="summary-value">
-                                    ${escapeHtml(latest.guild_name || "무소속")}
-                                </div>
-                            </div>
-
-
-                            <div class="summary-item">
-                                <div class="summary-label">
-                                    레벨
-                                </div>
-
-                                <div class="summary-value">
-                                    ${formatNumber(latest.level)}
-                                </div>
-                            </div>
-
-
-                            <div class="summary-item">
-                                <div class="summary-label">
-                                    전투력
-                                </div>
-
-                                <div class="summary-value">
-                                    ${formatNumber(latest.power)}
-                                </div>
-                            </div>
-
-                        </div>
-                    `
-                    : ""
-            }
-
-
-            <div class="section-title">
-                서버 이전
-            </div>
-
-            ${
-                moves.length > 0
-                    ? `
-                        <div class="move-list">
-
-                            ${moves.map(move => {
-
-                                return `
-                                    <div class="move-item">
-
-                                        <div class="move-date">
-                                            ${formatDate(move.fromDate)}
-                                            →
-                                            ${formatDate(move.toDate)}
-                                        </div>
-
-                                        <div class="move-content">
-
-                                            <strong>
-                                                ${escapeHtml(move.fromServer)}
-                                            </strong>
-
-                                            <span class="arrow">
-                                                →
-                                            </span>
-
-                                            <strong>
-                                                ${escapeHtml(move.toServer)}
-                                            </strong>
-
-                                        </div>
-
-                                    </div>
-                                `;
-
-                            }).join("")}
-
-                        </div>
-                    `
-                    : `
-                        <div class="notice">
-                            확인된 서버 이전 기록이 없습니다.
-                        </div>
-                    `
-            }
-
-
-            <div class="section-title">
-                연맹 변경
-            </div>
-
-            ${
-                guildMoves.length > 0
-                    ? `
-                        <div class="move-list">
-
-                            ${guildMoves.map(move => {
-
-                                return `
-                                    <div class="move-item">
-
-                                        <div class="move-date">
-                                            ${formatDate(move.fromDate)}
-                                            →
-                                            ${formatDate(move.toDate)}
-                                            ·
-                                            ${escapeHtml(move.server || "-")}
-                                        </div>
-
-                                        <div class="move-content">
-
-                                            <span class="guild-from">
-                                                ${escapeHtml(move.fromGuild || "무소속")}
-                                            </span>
-
-                                            <span class="arrow">
-                                                →
-                                            </span>
-
-                                            <span class="guild-to">
-                                                ${escapeHtml(move.toGuild || "무소속")}
-                                            </span>
-
-                                        </div>
-
-                                    </div>
-                                `;
-
-                            }).join("")}
-
-                        </div>
-                    `
-                    : `
-                        <div class="notice">
-                            확인된 연맹 변경 기록이 없습니다.
-                        </div>
-                    `
-            }
-
-
-            <div class="section-title">
-                과거 기록
-            </div>
-
-            ${
-                history.length > 0
-                    ? `
-                        <div class="table-wrap">
-
-                            <table>
-
-                                <thead>
-                                    <tr>
-                                        <th>날짜</th>
-                                        <th>순위</th>
-                                        <th>서버</th>
-                                        <th>연맹</th>
-                                        <th>직업</th>
-                                        <th>레벨</th>
-                                        <th>전투력</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-
-                                    ${history
-                                        .slice()
-                                        .reverse()
-                                        .map(item => {
-
-                                            return `
-                                                <tr>
-
-                                                    <td>
-                                                        ${formatDate(item.date)}
-                                                    </td>
-
-                                                    <td>
-                                                        ${formatNumber(
-                                                            item.totalRank ||
-                                                            item.rank ||
-                                                            0
-                                                        )}
-                                                    </td>
-
-                                                    <td>
-                                                        ${escapeHtml(item.server || "-")}
-                                                    </td>
-
-                                                    <td>
-                                                        ${escapeHtml(item.guild_name || "무소속")}
-                                                    </td>
-
-                                                    <td>
-                                                        ${escapeHtml(item.main_job || "-")}
-                                                    </td>
-
-                                                    <td>
-                                                        ${formatNumber(item.level)}
-                                                    </td>
-
-                                                    <td>
-                                                        ${formatNumber(item.power)}
-                                                    </td>
-
-                                                </tr>
-                                            `;
-
-                                        }).join("")}
-
-                                </tbody>
-
-                            </table>
-
-                        </div>
-                    `
-                    : `
-                        <div class="notice">
-                            과거 기록이 없습니다.
-                        </div>
-                    `
-
-            }
-
-        </div>
-    `;
-
-
-    const backButton =
-        document.getElementById(
-            "trackingBackButton"
-        );
-
-    if (backButton) {
-
-        backButton.addEventListener(
-            "click",
-            () => {
-
-                showPage("rankingPage");
-            }
-        );
-    }
-}
-
-
-/* =========================================
-   연맹 검색
-========================================= */
-
-function searchGuild() {
-
-    const search =
-        guildSearchInput.value
-            .trim()
-            .toLowerCase();
-
-    if (!search) {
-
-        guildStatus.textContent =
-            "연맹명을 입력해주세요.";
-
-        guildResult.innerHTML = "";
-
-        return;
-    }
-
-    const members =
-        currentData.filter(player => {
-
-            const guild =
-                String(player.guild_name || "")
-                    .trim()
-                    .toLowerCase();
-
-            return guild.includes(search);
-        });
-
-
-    if (members.length === 0) {
-
-        guildStatus.textContent =
-            "검색 결과가 없습니다.";
-
-        guildResult.innerHTML = `
-            <div class="card">
-                <div class="empty">
-                    해당 연맹을 찾을 수 없습니다.
-                </div>
+        html += `
             </div>
         `;
 
-        return;
+
+        // ==============================
+        // 닉네임 변경 기록
+        // ==============================
+
+        if (
+            tracking.nicknameChanges &&
+            tracking.nicknameChanges.length > 0
+        ) {
+
+            html += `
+
+                <div class="tracking-section">
+
+                    <div class="tracking-section-title">
+                        닉네임 변경 기록
+                    </div>
+
+                    <div class="tracking-list">
+
+            `;
+
+
+            tracking.nicknameChanges
+                .slice()
+                .reverse()
+                .forEach(
+                    function (change) {
+
+                        html += `
+
+                            <div class="tracking-item">
+
+                                <div class="tracking-date">
+                                    ${escapeHtml(
+                                        change.date ||
+                                        "-"
+                                    )}
+                                </div>
+
+                                <div class="tracking-change">
+
+                                    <span class="tracking-old">
+                                        ${escapeHtml(
+                                            change.from ||
+                                            "-"
+                                        )}
+                                    </span>
+
+                                    <span class="tracking-arrow">
+                                        →
+                                    </span>
+
+                                    <span class="tracking-new">
+                                        ${escapeHtml(
+                                            change.to ||
+                                            "-"
+                                        )}
+                                    </span>
+
+                                </div>
+
+                                ${
+                                    change.score != null
+                                    ? `
+                                        <div class="tracking-sub-info">
+                                            일치도:
+                                            ${escapeHtml(
+                                                change.score
+                                            )}점
+                                        </div>
+                                    `
+                                    : ""
+                                }
+
+                            </div>
+
+                        `;
+
+                    }
+                );
+
+
+            html += `
+
+                    </div>
+
+                </div>
+
+            `;
+        }
+
+
+        // ==============================
+        // 연맹 변경 기록
+        // ==============================
+
+        html += `
+
+            <div class="tracking-section">
+
+                <div class="tracking-section-title">
+                    연맹 변경 기록
+                </div>
+
+        `;
+
+
+        if (
+            tracking.guildMoves &&
+            tracking.guildMoves.length > 0
+        ) {
+
+            html += `
+                <div class="tracking-list">
+            `;
+
+
+            tracking.guildMoves
+                .slice()
+                .reverse()
+                .forEach(
+                    function (move) {
+
+                        const fromGuild =
+                            move.from ||
+                            move.fromGuild ||
+                            "무소속";
+
+
+                        const toGuild =
+                            move.to ||
+                            move.toGuild ||
+                            "무소속";
+
+
+                        const moveDate =
+                            move.date ||
+                            move.toDate ||
+                            "";
+
+
+                        html += `
+
+                            <div class="tracking-item guild-move">
+
+                                <div class="tracking-date">
+                                    ${escapeHtml(
+                                        moveDate
+                                    )}
+                                </div>
+
+                                <div class="tracking-change">
+
+                                    <span class="tracking-old">
+                                        ${escapeHtml(
+                                            fromGuild
+                                        )}
+                                    </span>
+
+                                    <span class="tracking-arrow">
+                                        →
+                                    </span>
+
+                                    <span class="tracking-new">
+                                        ${escapeHtml(
+                                            toGuild
+                                        )}
+                                    </span>
+
+                                </div>
+
+                                <div class="tracking-sub-info">
+
+                                    서버:
+                                    ${escapeHtml(
+                                        current.server ||
+                                        "-"
+                                    )}
+
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    }
+                );
+
+
+            html += `
+                </div>
+            `;
+
+        } else {
+
+            html += `
+
+                <div class="tracking-empty">
+                    확인된 연맹 변경 기록이 없습니다.
+                </div>
+
+            `;
+        }
+
+
+        html += `
+            </div>
+        `;
+
+
+        // ==============================
+        // 날짜별 전체 기록
+        // ==============================
+
+        html += `
+
+            <div class="tracking-section">
+
+                <div class="tracking-section-title">
+                    날짜별 플레이어 기록
+                </div>
+
+                <div class="history-table-wrap">
+
+                    <table class="history-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>날짜</th>
+                                <th>서버</th>
+                                <th>연맹</th>
+                                <th>직업</th>
+                                <th>레벨</th>
+                                <th>전투력</th>
+                                <th>순위</th>
+                                <th>전투력 변화</th>
+                                <th>순위 변화</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+        `;
+
+
+        history.forEach(
+            function (record, index) {
+
+                const previousRecord =
+                    history[index + 1] ||
+                    null;
+
+
+                const recordPowerChange =
+                    previousRecord
+                        ? Number(
+                            record.power || 0
+                          ) -
+                          Number(
+                            previousRecord.power || 0
+                          )
+                        : 0;
+
+
+                /*
+                 * 순위 변화
+                 *
+                 * 이전 순위 - 현재 순위
+                 *
+                 * 예:
+                 * 5514 -> 5532
+                 * 5514 - 5532 = -18
+                 * => ▼ 18
+                 */
+
+                const recordRankChange =
+                    previousRecord
+                        ? getPlayerRank(
+                            previousRecord
+                          ) -
+                          getPlayerRank(
+                            record
+                          )
+                        : 0;
+
+
+                const guild =
+                    record.guild_name ||
+                    record.guildName ||
+                    "무소속";
+
+
+                /*
+                 * 중요:
+                 * totalRank가 아니라 rank.
+                 */
+
+                const rank =
+                    getPlayerRank(
+                        record
+                    );
+
+
+                html += `
+
+                    <tr>
+
+                        <td>
+                            ${escapeHtml(
+                                record.date
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                record.server ||
+                                "-"
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                guild
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                record.main_job ||
+                                "-"
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                record.level ??
+                                "-"
+                            )}
+                        </td>
+
+                        <td>
+                            ${formatNumber(
+                                record.power
+                            )}
+                        </td>
+
+                        <td>
+                            ${
+                                rank > 0
+                                ? formatNumber(
+                                    rank
+                                  ) + "위"
+                                : "-"
+                            }
+                        </td>
+
+                        <td>
+                            ${
+                                previousRecord
+                                ? formatChange(
+                                    recordPowerChange
+                                  )
+                                : "-"
+                            }
+                        </td>
+
+                        <td>
+                            ${
+                                previousRecord
+                                ? formatChange(
+                                    recordRankChange
+                                  )
+                                : "-"
+                            }
+                        </td>
+
+                    </tr>
+
+                `;
+            }
+        );
+
+
+        html += `
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        `;
+
+
+        content.innerHTML =
+            html;
+
+
+    } catch (error) {
+
+        console.error(
+            "플레이어 기록 오류:",
+            error
+        );
+
+
+        content.innerHTML = `
+
+            <div class="history-empty">
+
+                과거 기록을 불러오지 못했습니다.
+
+            </div>
+
+        `;
+    }
+}
+
+
+// ==============================
+// 과거 기록 모달 생성
+// ==============================
+
+function createHistoryModal() {
+
+    let modal =
+        document.getElementById(
+            "playerHistoryModal"
+        );
+
+
+    if (modal) {
+        return modal;
     }
 
 
-    members.sort((a, b) => {
-
-        return (
-            (Number(b.power) || 0) -
-            (Number(a.power) || 0)
-        );
-    });
+    modal =
+        document.createElement("div");
 
 
-    const guildNames =
-        [...new Set(
-            members.map(
-                player =>
-                    player.guild_name || "무소속"
-            )
-        )];
+    modal.id =
+        "playerHistoryModal";
 
 
-    guildStatus.textContent =
-        `${formatNumber(members.length)}명 검색됨`;
+    modal.innerHTML = `
 
+        <div class="player-history-overlay">
 
-    guildResult.innerHTML = `
+            <div class="player-history-modal">
 
-        <div class="card">
+                <button
+                    class="player-history-close"
+                    type="button"
+                >
+                    ×
+                </button>
 
-            <div class="section-title">
-                ${guildNames
-                    .map(name => escapeHtml(name))
-                    .join(", ")}
-            </div>
-
-            <div class="table-wrap">
-
-                <table>
-
-                    <thead>
-                        <tr>
-                            <th>순위</th>
-                            <th>닉네임</th>
-                            <th>직업</th>
-                            <th>레벨</th>
-                            <th>전투력</th>
-                            <th>서버</th>
-                            <th>추적</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-
-                        ${members.map((player, index) => {
-
-                            return `
-                                <tr>
-
-                                    <td>
-                                        ${formatNumber(
-                                            player.totalRank ||
-                                            player.rank ||
-                                            index + 1
-                                        )}
-                                    </td>
-
-                                    <td>
-                                        <button
-                                            class="nickname-button guild-member-track"
-                                            data-name="${escapeHtml(player.name || "")}"
-                                            data-world-id="${escapeHtml(player.worldId || "")}"
-                                        >
-                                            ${escapeHtml(player.name || "-")}
-                                        </button>
-                                    </td>
-
-                                    <td>
-                                        ${escapeHtml(player.main_job || "-")}
-                                    </td>
-
-                                    <td>
-                                        ${formatNumber(player.level)}
-                                    </td>
-
-                                    <td>
-                                        ${formatNumber(player.power)}
-                                    </td>
-
-                                    <td>
-                                        ${escapeHtml(player.server || "-")}
-                                    </td>
-
-                                    <td>
-                                        <button
-                                            class="track-button guild-member-track"
-                                            data-name="${escapeHtml(player.name || "")}"
-                                            data-world-id="${escapeHtml(player.worldId || "")}"
-                                        >
-                                            추적
-                                        </button>
-                                    </td>
-
-                                </tr>
-                            `;
-
-                        }).join("")}
-
-                    </tbody>
-
-                </table>
+                <div class="player-history-content">
+                </div>
 
             </div>
 
         </div>
+
     `;
 
 
-    document
-        .querySelectorAll(".guild-member-track")
-        .forEach(button => {
+    document.body.appendChild(
+        modal
+    );
 
-            button.addEventListener(
-                "click",
-                () => {
 
-                    openTracking(
-                        button.dataset.name,
-                        button.dataset.worldId
-                    );
-                }
-            );
-        });
+    const closeButton =
+        modal.querySelector(
+            ".player-history-close"
+        );
+
+
+    closeButton.addEventListener(
+        "click",
+        function () {
+
+            modal.style.display =
+                "none";
+
+        }
+    );
+
+
+    const overlay =
+        modal.querySelector(
+            ".player-history-overlay"
+        );
+
+
+    overlay.addEventListener(
+        "click",
+        function (event) {
+
+            if (
+                event.target === overlay
+            ) {
+
+                modal.style.display =
+                    "none";
+
+            }
+
+        }
+    );
+
+
+    return modal;
 }
 
 
-/* =========================================
-   이벤트
-========================================= */
+// ==============================
+// 모달 스타일
+// ==============================
 
-searchButton.addEventListener(
-    "click",
-    renderRanking
-);
+const historyStyle =
+    document.createElement("style");
 
 
-searchInput.addEventListener(
-    "keydown",
-    event => {
+historyStyle.textContent = `
 
-        if (event.key === "Enter") {
-            renderRanking();
-        }
+#playerHistoryModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+}
+
+.player-history-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.player-history-modal {
+    position: relative;
+    width: min(1200px, 95vw);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #111;
+    color: #fff;
+    border-radius: 14px;
+    padding: 28px;
+    box-sizing: border-box;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.player-history-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 50%;
+    background: #333;
+    color: #fff;
+    font-size: 26px;
+    cursor: pointer;
+}
+
+.player-history-close:hover {
+    background: #555;
+}
+
+.history-player-name {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.history-player-info {
+    color: #aaa;
+    margin-bottom: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+}
+
+.history-player-info strong {
+    color: #fff;
+}
+
+.history-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.history-summary-box {
+    background: #1c1c1c;
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.history-summary-title {
+    color: #999;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.history-summary-value {
+    font-size: 21px;
+    font-weight: 700;
+}
+
+.tracking-section {
+    margin-top: 24px;
+}
+
+.tracking-section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.tracking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tracking-item {
+    background: #1c1c1c;
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.tracking-date {
+    color: #888;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.tracking-change {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.tracking-old {
+    color: #999;
+}
+
+.tracking-arrow {
+    color: #666;
+}
+
+.tracking-new {
+    color: #fff;
+}
+
+.tracking-sub-info {
+    margin-top: 7px;
+    color: #888;
+    font-size: 12px;
+}
+
+.tracking-empty {
+    background: #1c1c1c;
+    border-radius: 10px;
+    padding: 18px;
+    color: #777;
+    text-align: center;
+}
+
+.history-table-wrap {
+    overflow-x: auto;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 950px;
+}
+
+.history-table th,
+.history-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #292929;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.history-table th {
+    background: #1b1b1b;
+    color: #aaa;
+    font-size: 13px;
+}
+
+.history-table td {
+    font-size: 14px;
+}
+
+.history-up {
+    color: #ff5c5c;
+    font-weight: 700;
+}
+
+.history-down {
+    color: #4da3ff;
+    font-weight: 700;
+}
+
+.history-same {
+    color: #999;
+}
+
+.history-loading,
+.history-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #aaa;
+}
+
+.nickname-history {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.nickname-history:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 700px) {
+
+    .history-summary {
+        grid-template-columns: 1fr;
     }
+
+    .player-history-modal {
+        padding: 20px;
+    }
+
+    .history-player-info {
+        flex-direction: column;
+        gap: 5px;
+    }
+
+}
+
+`;
+
+
+document.head.appendChild(
+    historyStyle
 );
 
 
-searchInput.addEventListener(
-    "input",
-    renderRanking
-);
-
+// ==============================
+// 서버 변경
+// ==============================
 
 serverFilter.addEventListener(
     "change",
-    renderRanking
-);
+    async function () {
+
+        const selectedServer =
+            serverFilter.value;
 
 
-sortFilter.addEventListener(
-    "change",
-    renderRanking
-);
+        if (
+            currentHistoryDate !==
+            "current"
+        ) {
+
+            applyFiltersAndSort();
+
+            return;
+        }
 
 
-historyFilter.addEventListener(
-    "change",
-    async () => {
-
-        const value =
-            historyFilter.value;
-
-        if (value === "current") {
+        if (
+            selectedServer === "all"
+        ) {
 
             await loadAllRanking();
 
         } else {
 
-            await loadHistoryRanking(value);
+            await loadRanking();
+
         }
+
     }
 );
 
 
-trackingButton.addEventListener(
-    "click",
-    () => {
+// ==============================
+// 날짜 변경
+// ==============================
 
-        const name =
-            trackingName.value.trim();
+historyFilter.addEventListener(
+    "change",
+    async function () {
 
-        const worldId =
-            trackingServer.value;
+        const selectedDate =
+            historyFilter.value;
 
-        loadTracking(
-            name,
-            worldId
+
+        currentHistoryDate =
+            selectedDate;
+
+
+        if (
+            selectedDate ===
+            "current"
+        ) {
+
+            if (
+                serverFilter.value ===
+                "all"
+            ) {
+
+                await loadAllRanking();
+
+            } else {
+
+                await loadRanking();
+
+            }
+
+            return;
+        }
+
+
+        await loadHistoryRanking(
+            selectedDate
         );
+
     }
 );
 
 
-trackingName.addEventListener(
-    "keydown",
-    event => {
+// ==============================
+// 검색
+// ==============================
 
-        if (event.key === "Enter") {
-
-            loadTracking(
-                trackingName.value.trim(),
-                trackingServer.value
-            );
-        }
-    }
-);
-
-
-guildSearchButton.addEventListener(
+searchButton.addEventListener(
     "click",
-    searchGuild
-);
+    function () {
 
+        applyFiltersAndSort();
 
-guildSearchInput.addEventListener(
-    "keydown",
-    event => {
-
-        if (event.key === "Enter") {
-            searchGuild();
-        }
     }
 );
 
 
-/* =========================================
-   초기 실행
-========================================= */
+// ==============================
+// 엔터 검색
+// ==============================
 
-async function init() {
+searchInput.addEventListener(
+    "keydown",
+    function (event) {
 
-    populateServerSelects();
+        if (
+            event.key === "Enter"
+        ) {
 
-    await loadHistoryDates();
+            applyFiltersAndSort();
 
-    await loadAllRanking();
+        }
+
+    }
+);
+
+
+// ==============================
+// 정렬 변경
+// ==============================
+
+sortFilter.addEventListener(
+    "change",
+    function () {
+
+        applyFiltersAndSort();
+
+    }
+);
+
+
+// ==============================
+// 시작
+// ==============================
+
+serverFilter.value =
+    "all";
+
+currentHistoryDate =
+    "current";
+
+
+loadHistoryDates();
+
+loadAllRanking();
+
+
+// ==============================
+// 거래소 메뉴 전환
+// ==============================
+
+const rankingMenu =
+    document.getElementById(
+        "rankingMenu"
+    );
+
+const tradeMenu =
+    document.getElementById(
+        "tradeMenu"
+    );
+
+const rankingSection =
+    document.getElementById(
+        "rankingSection"
+    );
+
+const tradeSection =
+    document.getElementById(
+        "tradeSection"
+    );
+
+
+if (
+    rankingMenu &&
+    tradeMenu &&
+    rankingSection &&
+    tradeSection
+) {
+
+    rankingMenu.addEventListener(
+        "click",
+        function (event) {
+
+            event.preventDefault();
+
+            rankingSection.style.display =
+                "block";
+
+            tradeSection.style.display =
+                "none";
+
+        }
+    );
+
+
+    tradeMenu.addEventListener(
+        "click",
+        function (event) {
+
+            event.preventDefault();
+
+            rankingSection.style.display =
+                "none";
+
+            tradeSection.style.display =
+                "block";
+
+        }
+    );
+
 }
-
-
-init();
