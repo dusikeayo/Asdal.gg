@@ -1,135 +1,566 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>아스달 지지</title>
 
-    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #0f1115;
+            color: #e8e8e8;
+            font-family: Arial, "Malgun Gothic", sans-serif;
+        }
+
+        header {
+            background: #15181e;
+            border-bottom: 1px solid #292d35;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        nav {
+            display: flex;
+            gap: 6px;
+        }
+
+        nav button {
+            border: 0;
+            background: transparent;
+            color: #aaa;
+            padding: 10px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        nav button:hover,
+        nav button.active {
+            background: #252a33;
+            color: #fff;
+        }
+
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px 60px;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page-title {
+            margin: 0 0 8px;
+            font-size: 25px;
+        }
+
+        .page-description {
+            color: #888;
+            margin: 0 0 24px;
+            font-size: 14px;
+        }
+
+        .search-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        input,
+        select,
+        button {
+            font-family: inherit;
+        }
+
+        input,
+        select {
+            height: 42px;
+            background: #191c22;
+            color: #eee;
+            border: 1px solid #30343c;
+            border-radius: 7px;
+            padding: 0 12px;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #666;
+        }
+
+        .search-input {
+            min-width: 250px;
+            flex: 1;
+        }
+
+        .search-button {
+            height: 42px;
+            border: 0;
+            border-radius: 7px;
+            padding: 0 18px;
+            background: #eee;
+            color: #111;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .search-button:hover {
+            background: #fff;
+        }
+
+        .status {
+            min-height: 24px;
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            background: #15181e;
+            border: 1px solid #292d35;
+            border-radius: 9px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        th,
+        td {
+            padding: 13px 12px;
+            border-bottom: 1px solid #272b32;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #1b1e25;
+            color: #aaa;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        td {
+            font-size: 14px;
+        }
+
+        tbody tr:hover {
+            background: #1b1e24;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .nickname-button {
+            background: none;
+            border: 0;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 700;
+            padding: 0;
+        }
+
+        .nickname-button:hover {
+            text-decoration: underline;
+        }
+
+        .track-button {
+            border: 1px solid #3a3f48;
+            background: #20242b;
+            color: #ddd;
+            border-radius: 5px;
+            padding: 5px 9px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .track-button:hover {
+            background: #2a2f37;
+        }
+
+        .card {
+            background: #15181e;
+            border: 1px solid #292d35;
+            border-radius: 9px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .player-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 18px;
+        }
+
+        .player-name {
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .player-info {
+            color: #999;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .summary-item {
+            background: #1a1d23;
+            border-radius: 7px;
+            padding: 14px;
+        }
+
+        .summary-label {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .summary-value {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .section-title {
+            font-size: 16px;
+            margin: 20px 0 12px;
+        }
+
+        .notice {
+            padding: 14px;
+            background: #1b1e24;
+            border: 1px solid #30343b;
+            border-radius: 7px;
+            color: #aaa;
+            font-size: 13px;
+        }
+
+        .move-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .move-item {
+            background: #1b1e24;
+            border: 1px solid #30343b;
+            border-radius: 7px;
+            padding: 13px;
+        }
+
+        .move-date {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .move-content {
+            font-size: 14px;
+        }
+
+        .arrow {
+            color: #888;
+            padding: 0 7px;
+        }
+
+        .guild-from {
+            color: #aaa;
+        }
+
+        .guild-to {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .back-button {
+            border: 1px solid #363b44;
+            background: #20242b;
+            color: #ddd;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .back-button:hover {
+            background: #292e36;
+        }
+
+        .empty {
+            padding: 35px 15px;
+            text-align: center;
+            color: #777;
+        }
+
+        .loading {
+            padding: 35px 15px;
+            text-align: center;
+            color: #888;
+        }
+
+        .guild-search {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .guild-search input {
+            flex: 1;
+        }
+
+        .guild-name {
+            font-weight: 700;
+        }
+
+        .guild-server {
+            color: #aaa;
+        }
+
+        .small {
+            color: #777;
+            font-size: 12px;
+        }
+
+        @media (max-width: 800px) {
+            .header-inner {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            nav {
+                width: 100%;
+            }
+
+            nav button {
+                flex: 1;
+            }
+
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            main {
+                padding: 20px 12px 40px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .summary-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .search-input {
+                min-width: 100%;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
-    <header>
-        <h1>아스달 지지</h1>
+<header>
+    <div class="header-inner">
+        <div class="logo">아스달 지지</div>
 
         <nav>
-            <a href="#">랭킹</a>
+            <button class="nav-button active" data-page="rankingPage">랭킹</button>
+            <button class="nav-button" data-page="trackingPage">추적</button>
+            <button class="nav-button" data-page="guildPage">연맹</button>
         </nav>
-    </header>
+    </div>
+</header>
 
+<main>
 
-    <main>
+    <!-- ============================= -->
+    <!-- 랭킹 -->
+    <!-- ============================= -->
 
-        <section class="ranking">
+    <section id="rankingPage" class="page active">
 
-            <h2>랭킹</h2>
+        <h1 class="page-title">랭킹</h1>
+        <p class="page-description">
+            아스달연대기 전체 서버 랭킹
+        </p>
 
+        <div class="search-box">
 
-            <!-- 검색 영역 -->
+            <input
+                type="text"
+                id="searchInput"
+                class="search-input"
+                placeholder="닉네임을 검색하세요"
+            >
 
-            <div class="search-box">
+            <select id="serverFilter">
+                <option value="all">전체 서버</option>
+            </select>
 
-                <input
-                    type="text"
-                    id="searchInput"
-                    placeholder="닉네임을 검색하세요"
-                >
+            <select id="sortFilter">
+                <option value="power">전투력 높은 순</option>
+                <option value="level">레벨 높은 순</option>
+                <option value="nickname">닉네임 순</option>
+                <option value="rank">순위 순</option>
+            </select>
 
+            <select id="historyFilter">
+                <option value="current">현재 랭킹</option>
+            </select>
 
-                <select id="serverFilter">
+            <button id="searchButton" class="search-button">
+                검색
+            </button>
 
-                    <option value="all">
-                        전체 서버
-                    </option>
+        </div>
 
-                    <option value="">
-                        서버 선택
-                    </option>
+        <div id="rankingStatus" class="status"></div>
 
-                </select>
-
-
-                <select id="sortFilter">
-
-                    <option value="power">
-                        전투력 높은 순
-                    </option>
-
-                    <option value="level">
-                        레벨 높은 순
-                    </option>
-
-                    <option value="nickname">
-                        닉네임 순
-                    </option>
-
-                </select>
-
-
-                <!-- 과거 랭킹 -->
-
-                <select id="historyFilter">
-
-                    <option value="current">
-                        현재 랭킹
-                    </option>
-
-                </select>
-
-
-                <button id="searchButton">
-                    검색
-                </button>
-
-            </div>
-
-
-            <!-- 현재 / 과거 상태 -->
-
-            <div id="rankingStatus"></div>
-
-
-            <!-- 랭킹 표 -->
+        <div class="table-wrap">
 
             <table>
 
                 <thead>
-
                     <tr>
-
                         <th>순위</th>
                         <th>닉네임</th>
                         <th>직업</th>
                         <th>레벨</th>
                         <th>전투력</th>
+                        <th>연맹</th>
                         <th>서버</th>
-
+                        <th>추적</th>
                     </tr>
-
                 </thead>
 
-
                 <tbody id="rankingBody">
-
+                    <tr>
+                        <td colspan="8" class="loading">
+                            랭킹을 불러오는 중...
+                        </td>
+                    </tr>
                 </tbody>
 
             </table>
 
-        </section>
+        </div>
 
-    </main>
-
-
-    <footer>
-
-        <p>아스달 지지</p>
-
-    </footer>
+    </section>
 
 
-    <script src="script.js"></script>
+    <!-- ============================= -->
+    <!-- 추적 -->
+    <!-- ============================= -->
+
+    <section id="trackingPage" class="page">
+
+        <h1 class="page-title">플레이어 추적</h1>
+
+        <p class="page-description">
+            닉네임과 서버를 기준으로 과거 랭킹, 서버 이전, 연맹 변경 기록을 확인합니다.
+        </p>
+
+        <div class="search-box">
+
+            <input
+                type="text"
+                id="trackingName"
+                class="search-input"
+                placeholder="닉네임을 입력하세요"
+            >
+
+            <select id="trackingServer">
+                <option value="all">서버 선택</option>
+            </select>
+
+            <button id="trackingButton" class="search-button">
+                추적하기
+            </button>
+
+        </div>
+
+        <div id="trackingStatus" class="status"></div>
+
+        <div id="trackingResult"></div>
+
+    </section>
+
+
+    <!-- ============================= -->
+    <!-- 연맹 -->
+    <!-- ============================= -->
+
+    <section id="guildPage" class="page">
+
+        <h1 class="page-title">연맹 검색</h1>
+
+        <p class="page-description">
+            현재 랭킹에 등록된 연맹원을 검색합니다.
+        </p>
+
+        <div class="guild-search">
+
+            <input
+                type="text"
+                id="guildSearchInput"
+                placeholder="연맹명을 입력하세요"
+            >
+
+            <button id="guildSearchButton" class="search-button">
+                검색
+            </button>
+
+        </div>
+
+        <div id="guildStatus" class="status"></div>
+
+        <div id="guildResult"></div>
+
+    </section>
+
+</main>
+
+<script src="script.js"></script>
 
 </body>
-
 </html>
